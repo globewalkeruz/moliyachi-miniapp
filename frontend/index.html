@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Moliyachi</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- Loading screen -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-logo">
+      <span class="logo-icon">💰</span>
+      <span class="logo-text">Moliyachi</span>
+    </div>
+    <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- ──────────────────── HOME ──────────────────── -->
+  <section id="home" class="section active">
+    <div class="section-scroll">
+
+      <!-- Balance card -->
+      <div class="balance-card">
+        <div class="balance-card-top">
+          <div>
+            <p class="balance-label">Umumiy balans</p>
+            <h1 class="balance-amount" id="balance-amount">0 <span>so'm</span></h1>
+          </div>
+          <button class="refresh-btn" id="refresh-btn" title="Yangilash">↻</button>
+        </div>
+        <div class="balance-row">
+          <div class="balance-stat">
+            <span class="stat-icon-income">▲</span>
+            <div>
+              <p class="stat-label">Daromad</p>
+              <p class="stat-val income-text" id="home-income">0 so'm</p>
+            </div>
+          </div>
+          <div class="balance-divider"></div>
+          <div class="balance-stat">
+            <span class="stat-icon-expense">▼</span>
+            <div>
+              <p class="stat-label">Xarajat</p>
+              <p class="stat-val expense-text" id="home-expense">0 so'm</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="quick-actions">
+        <button class="quick-btn q-expense" onclick="navigateTo('expense')">
+          <span class="quick-btn-icon">➖</span>
+          <span>Xarajat</span>
+        </button>
+        <button class="quick-btn q-income" onclick="navigateTo('income')">
+          <span class="quick-btn-icon">➕</span>
+          <span>Daromad</span>
+        </button>
+        <button class="quick-btn q-report" onclick="navigateTo('report')">
+          <span class="quick-btn-icon">📊</span>
+          <span>Hisobot</span>
+        </button>
+        <button class="quick-btn q-ai" onclick="navigateTo('ai')">
+          <span class="quick-btn-icon">🤖</span>
+          <span>AI</span>
+        </button>
+      </div>
+
+      <!-- Currency -->
+      <div class="card-block">
+        <div class="block-header">
+          <h3>Valyuta kurslari</h3>
+          <span class="badge">CBU</span>
+        </div>
+        <div id="currency-list" class="currency-list">
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+        </div>
+      </div>
+
+      <!-- Recent transactions -->
+      <div class="card-block">
+        <div class="block-header">
+          <h3>So'nggi tranzaksiyalar</h3>
+          <button class="link-btn" onclick="navigateTo('report')">Barchasi →</button>
+        </div>
+        <div id="recent-transactions">
+          <div class="empty-state">
+            <span class="empty-icon">📋</span>
+            <p>Hali tranzaksiyalar yo'q</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ──────────────────── EXPENSE ──────────────────── -->
+  <section id="expense" class="section">
+    <div class="section-scroll">
+
+      <div class="form-header expense-header">
+        <h2>➖ Xarajat qo'shish</h2>
+      </div>
+
+      <div class="amount-card expense-amount-card">
+        <p class="amount-card-label">Summa (so'm)</p>
+        <div class="amount-row">
+          <span class="currency-tag">UZS</span>
+          <input
+            type="number"
+            id="expense-amount"
+            class="amount-field"
+            placeholder="0"
+            min="0"
+            inputmode="numeric"
+          />
+        </div>
+      </div>
+
+      <div class="form-block">
+        <p class="form-label">Kategoriya</p>
+        <div class="categories-grid" id="expense-categories"></div>
+      </div>
+
+      <div class="form-block">
+        <p class="form-label">Izoh <span class="optional">(ixtiyoriy)</span></p>
+        <input
+          type="text"
+          id="expense-description"
+          class="text-field"
+          placeholder="Qisqacha izoh..."
+          maxlength="100"
+        />
+      </div>
+
+      <button class="submit-btn expense-submit-btn" onclick="submitTransaction('expense')">
+        ➖ &nbsp;Xarajat qo'shish
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ──────────────────── INCOME ──────────────────── -->
+  <section id="income" class="section">
+    <div class="section-scroll">
+
+      <div class="form-header income-header">
+        <h2>➕ Daromad qo'shish</h2>
+      </div>
+
+      <div class="amount-card income-amount-card">
+        <p class="amount-card-label">Summa (so'm)</p>
+        <div class="amount-row">
+          <span class="currency-tag">UZS</span>
+          <input
+            type="number"
+            id="income-amount"
+            class="amount-field"
+            placeholder="0"
+            min="0"
+            inputmode="numeric"
+          />
+        </div>
+      </div>
+
+      <div class="form-block">
+        <p class="form-label">Kategoriya</p>
+        <div class="categories-grid" id="income-categories"></div>
+      </div>
+
+      <div class="form-block">
+        <p class="form-label">Izoh <span class="optional">(ixtiyoriy)</span></p>
+        <input
+          type="text"
+          id="income-description"
+          class="text-field"
+          placeholder="Qisqacha izoh..."
+          maxlength="100"
+        />
+      </div>
+
+      <button class="submit-btn income-submit-btn" onclick="submitTransaction('income')">
+        ➕ &nbsp;Daromad qo'shish
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ──────────────────── REPORT ──────────────────── -->
+  <section id="report" class="section">
+    <div class="section-scroll">
+
+      <div class="form-header">
+        <h2>📊 Hisobot</h2>
+        <span class="report-month-badge" id="report-month-badge"></span>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="report-grid">
+        <div class="report-card rc-income">
+          <span class="rc-icon">📈</span>
+          <p class="rc-label">Daromad</p>
+          <p class="rc-value" id="report-income">0</p>
+          <p class="rc-sub">so'm</p>
+        </div>
+        <div class="report-card rc-expense">
+          <span class="rc-icon">📉</span>
+          <p class="rc-label">Xarajat</p>
+          <p class="rc-value" id="report-expense">0</p>
+          <p class="rc-sub">so'm</p>
+        </div>
+        <div class="report-card rc-net" id="rc-net-card">
+          <span class="rc-icon">💼</span>
+          <p class="rc-label">Tejam</p>
+          <p class="rc-value" id="report-net">0</p>
+          <p class="rc-sub">so'm</p>
+        </div>
+      </div>
+
+      <!-- Expense chart -->
+      <div class="card-block" id="expense-chart-block" style="display:none">
+        <h3>Xarajatlar taqsimoti</h3>
+        <div class="chart-wrap">
+          <canvas id="expense-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Income chart -->
+      <div class="card-block" id="income-chart-block" style="display:none">
+        <h3>Daromad manbalari</h3>
+        <div class="chart-wrap">
+          <canvas id="income-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Category breakdown -->
+      <div class="card-block">
+        <h3>Kategoriyalar bo'yicha</h3>
+        <div id="category-breakdown">
+          <div class="empty-state">
+            <span class="empty-icon">📊</span>
+            <p>Bu oyda ma'lumot yo'q</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ──────────────────── AI ──────────────────── -->
+  <section id="ai" class="section">
+
+    <div class="ai-header">
+      <h2>🤖 AI Maslahat</h2>
+      <span class="ai-model-badge">Gemini</span>
+    </div>
+
+    <div class="chat-container" id="chat-messages">
+      <div class="chat-row ai-row">
+        <div class="chat-avatar">🤖</div>
+        <div class="chat-bubble ai-bubble">
+          Salom! Men <b>Moliyachi AI</b> — sizning moliyaviy maslahatchi botingizman.
+          Moliya, tejash, investitsiya yoki xarajatlar haqida savolingiz bo'lsa — bering!
+        </div>
+      </div>
+    </div>
+
+    <div class="quick-questions">
+      <button class="qq-btn" onclick="sendQuickQuestion('Oy oxirigacha qancha tejash mumkin?')">
+        💡 Tejash maslahat
+      </button>
+      <button class="qq-btn" onclick="sendQuickQuestion('Xarajatlarimni qanday kamaytirish mumkin?')">
+        📉 Xarajatni kamaytirish
+      </button>
+      <button class="qq-btn" onclick="sendQuickQuestion('Investitsiya haqida maslahat bering')">
+        📈 Investitsiya
+      </button>
+      <button class="qq-btn" onclick="sendQuickQuestion('Moliyaviy maqsad qo\'yish bo\'yicha maslahat')">
+        🎯 Maqsad qo'yish
+      </button>
+    </div>
+
+    <div class="chat-input-row">
+      <input
+        type="text"
+        id="ai-input"
+        class="chat-input-field"
+        placeholder="Savol yozing..."
+        maxlength="500"
+        onkeydown="if(event.key==='Enter') sendAIMessage()"
+      />
+      <button class="send-btn" onclick="sendAIMessage()" aria-label="Yuborish">➤</button>
+    </div>
+
+  </section>
+
+  <!-- ──────────────────── BOTTOM NAV ──────────────────── -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-btn active" data-section="home" onclick="navigateTo('home')">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Bosh sahifa</span>
+    </button>
+    <button class="nav-btn" data-section="expense" onclick="navigateTo('expense')">
+      <span class="nav-icon">➖</span>
+      <span class="nav-label">Xarajat</span>
+    </button>
+    <button class="nav-btn" data-section="income" onclick="navigateTo('income')">
+      <span class="nav-icon">➕</span>
+      <span class="nav-label">Daromad</span>
+    </button>
+    <button class="nav-btn" data-section="report" onclick="navigateTo('report')">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Hisobot</span>
+    </button>
+    <button class="nav-btn" data-section="ai" onclick="navigateTo('ai')">
+      <span class="nav-icon">🤖</span>
+      <span class="nav-label">AI Maslahat</span>
+    </button>
+  </nav>
+
+</div><!-- #app -->
+<script src="/static/app.js"></script>
+</body>
+</html>
