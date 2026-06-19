@@ -245,18 +245,40 @@ input:focus, textarea:focus, select:focus {
 
 .balance-card-top {
   display: flex; justify-content: space-between;
-  align-items: flex-start; margin-bottom: 16px; position: relative;
+  align-items: center; margin-bottom: 10px; position: relative;
 }
 .balance-label {
   font-size: 11px; font-weight: 600; letter-spacing: 1px;
-  text-transform: uppercase; color: var(--text-3); margin-bottom: 6px;
+  text-transform: uppercase; color: var(--text-3);
 }
 .balance-amount {
-  font-size: 34px; font-weight: 800; letter-spacing: -1.5px; line-height: 1;
-  color: #ffffff !important;
+  font-size: 36px; font-weight: 800; letter-spacing: -1.5px; line-height: 1;
+  color: #ffffff !important; margin-bottom: 16px;
   text-shadow: 0 0 40px rgba(255,255,255,0.25);
 }
-.balance-amount span { font-size: 15px; font-weight: 600; opacity: 0.6; letter-spacing: 0; }
+.balance-amount span { font-size: 16px; font-weight: 600; opacity: 0.6; letter-spacing: 0; }
+
+.balance-stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.bstat-card {
+  border-radius: var(--radius-md); padding: 12px 14px;
+}
+.income-bstat {
+  background: rgba(0,245,160,0.10);
+  border: 1px solid rgba(0,245,160,0.22);
+}
+.expense-bstat {
+  background: rgba(255,107,107,0.10);
+  border: 1px solid rgba(255,107,107,0.22);
+}
+.bstat-label {
+  font-size: 10px; font-weight: 600; color: var(--text-3);
+  margin-bottom: 6px; letter-spacing: 0.2px;
+}
+.bstat-value {
+  font-size: 15px; font-weight: 800; letter-spacing: -0.3px;
+}
 
 .refresh-btn {
   width: 36px; height: 36px;
@@ -277,20 +299,8 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 10px rgba(167,139,250,0.35);
 }
 
-.balance-row {
-  display: flex; align-items: center;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: var(--radius-lg); padding: 13px 16px; gap: 12px;
-}
-.balance-stat { display: flex; align-items: center; gap: 10px; flex: 1; }
-.stat-icon-income  { font-size: 14px; color: var(--income); }
-.stat-icon-expense { font-size: 14px; color: var(--expense); }
-.stat-label { font-size: 9px; color: var(--text-3); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 2px; }
-.stat-val   { font-size: 12px; font-weight: 700; color: #ffffff !important; }
 .income-text  { color: var(--income)  !important; text-shadow: 0 0 12px var(--income-glow); }
 .expense-text { color: var(--expense) !important; text-shadow: 0 0 12px var(--expense-glow); }
-.balance-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.12); }
 
 /* ══════════════════════════════════════════════════════════
    QUICK ACTIONS

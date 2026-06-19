@@ -38,30 +38,21 @@
 
       <div class="balance-card">
         <div class="balance-card-top">
-          <div>
-            <p class="balance-label" id="balance-greeting">Umumiy balans</p>
-            <h1 class="balance-amount" id="balance-amount">0 <span>so'm</span></h1>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            <button class="refresh-btn" id="refresh-btn" title="Yangilash">↻</button>
+          <p class="balance-label" id="balance-greeting">Umumiy balans</p>
+          <div style="display:flex;align-items:center;gap:8px">
             <div class="user-avatar" id="user-avatar" style="display:none"></div>
+            <button class="refresh-btn" id="refresh-btn" title="Yangilash">↻</button>
           </div>
         </div>
-        <div class="balance-row">
-          <div class="balance-stat">
-            <span class="stat-icon-income">▲</span>
-            <div>
-              <p class="stat-label">Daromad</p>
-              <p class="stat-val income-text" id="home-income">0 so'm</p>
-            </div>
+        <h1 class="balance-amount" id="balance-amount">0 <span>so'm</span></h1>
+        <div class="balance-stats-grid">
+          <div class="bstat-card income-bstat">
+            <p class="bstat-label">📈 Jami daromad</p>
+            <p class="bstat-value income-text" id="home-income">0 so'm</p>
           </div>
-          <div class="balance-divider"></div>
-          <div class="balance-stat">
-            <span class="stat-icon-expense">▼</span>
-            <div>
-              <p class="stat-label">Xarajat</p>
-              <p class="stat-val expense-text" id="home-expense">0 so'm</p>
-            </div>
+          <div class="bstat-card expense-bstat">
+            <p class="bstat-label">📉 Jami xarajat</p>
+            <p class="bstat-value expense-text" id="home-expense">0 so'm</p>
           </div>
         </div>
       </div>
