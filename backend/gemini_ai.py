@@ -1,23 +1,25 @@
 import asyncio
 import os
-from functools import lru_cache
 
 import google.generativeai as genai
 
+# Initialise once at import time — env vars are stable for the lifetime of a process.
+_api_key = os.getenv("GOOGLE_API_KEY", "")
+_model = None
 
-@lru_cache(maxsize=1)
-def _get_model():
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    if not api_key:
-        return None
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-1.5-flash")
+if _api_key:
+    genai.configure(api_key=_api_key)
+    _model = genai.GenerativeModel("gemini-1.5-flash")
+
+_MISSING_KEY_MSG = (
+    "Kechirasiz, AI xizmati hozirda faol emas. "
+    "Render.com muhit o'zgaruvchilarida GOOGLE_API_KEY ni sozlang."
+)
 
 
 async def get_financial_advice(user_message: str, financial_summary: str = "") -> str:
-    model = _get_model()
-    if not model:
-        return "Kechirasiz, AI xizmati hozirda mavjud emas. GEMINI_API_KEY sozlanmagan."
+    if not _model:
+        return _MISSING_KEY_MSG
 
     prompt = f"""Siz "Moliyachi" — O'zbekiston moliyaviy maslahatchi botisiz.
 Faqat O'zbek tilida javob bering. Qisqa, amaliy va foydali maslahatlar bering.
@@ -31,8 +33,8 @@ Savol: {user_message}
 Javob (O'zbek tilida):"""
 
     try:
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: model.generate_content(prompt))
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, lambda: _model.generate_content(prompt))
         return response.text.strip()
     except Exception as e:
-        return f"Kechirasiz, xato yuz berdi: {str(e)}"
+        return f"Kechirasiz, so'rovni bajarishda xato yuz berdi: {str(e)}"

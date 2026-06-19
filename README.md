@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 # 4. Configure environment
 cp .env.example .env
-# Edit .env with your TELEGRAM_TOKEN and GEMINI_API_KEY
+# Edit .env with your TELEGRAM_TOKEN and GOOGLE_API_KEY
 
 # 5. Run the server
 cd backend
@@ -42,9 +42,19 @@ App will be at `http://localhost:8000`
 3. Connect your GitHub repository
 4. Render auto-detects `render.yaml` — set your env vars in the dashboard:
    - `TELEGRAM_TOKEN` — from [@BotFather](https://t.me/BotFather)
-   - `GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com/)
+   - `GOOGLE_API_KEY` — from [Google AI Studio](https://aistudio.google.com/apikey)
    - `WEBHOOK_URL` — your Render app URL (e.g. `https://moliyachi.onrender.com`)
 5. Deploy
+
+### Setting GOOGLE_API_KEY on Render.com
+
+1. Open your service in the [Render dashboard](https://dashboard.render.com)
+2. Go to **Environment** → **Environment Variables**
+3. Click **Add Environment Variable**
+4. Set **Key** = `GOOGLE_API_KEY` and **Value** = your key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+5. Click **Save Changes** — Render redeploys automatically
+
+> The AI advisor will show a friendly Uzbek error message if the key is missing or invalid.
 
 ## Telegram Bot Setup
 
