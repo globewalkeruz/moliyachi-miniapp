@@ -222,44 +222,41 @@ input:focus, textarea:focus, select:focus {
    BALANCE CARD
 ══════════════════════════════════════════════════════════ */
 .balance-card {
-  background: rgba(20, 14, 55, 0.80);
-  backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
-  border: 1px solid rgba(255,255,255,0.16);
+  background: linear-gradient(145deg, rgba(22,15,58,0.94), rgba(16,10,44,0.90));
+  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255,255,255,0.13);
   border-radius: var(--radius-2xl);
-  padding: 24px 22px 20px;
-  position: relative; overflow: hidden;
-  box-shadow: 0 16px 56px rgba(0,0,0,0.5), var(--glass-inset);
+  padding: 22px 20px 20px;
+  position: relative;
+  box-shadow: 0 14px 52px rgba(0,0,0,0.48);
 }
 .balance-card::before {
   content: '';
-  position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.50), transparent);
-}
-.balance-card::after {
-  content: '';
-  position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
-  width: 240px; height: 130px;
-  background: radial-gradient(ellipse, rgba(167,139,250,0.22), transparent 70%);
-  pointer-events: none;
+  position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.38), transparent);
+  pointer-events: none; z-index: 0;
 }
 
 .balance-card-top {
   display: flex; justify-content: space-between;
-  align-items: center; margin-bottom: 10px; position: relative;
+  align-items: center; margin-bottom: 6px;
+  position: relative; z-index: 1;
 }
 .balance-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 1px;
-  text-transform: uppercase; color: var(--text-3);
+  font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; color: rgba(255,255,255,0.48);
+  line-height: 1;
 }
 .balance-amount {
-  font-size: 36px; font-weight: 800; letter-spacing: -1.5px; line-height: 1;
-  color: #ffffff !important; margin-bottom: 16px;
-  text-shadow: 0 0 40px rgba(255,255,255,0.25);
+  font-size: 38px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1;
+  color: #ffffff; margin: 4px 0 16px;
+  position: relative; z-index: 1;
 }
-.balance-amount span { font-size: 16px; font-weight: 600; opacity: 0.6; letter-spacing: 0; }
+.balance-amount span { font-size: 16px; font-weight: 600; opacity: 0.55; letter-spacing: 0; }
 
 .balance-stats-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  position: relative; z-index: 1;
 }
 .bstat-card {
   border-radius: var(--radius-md); padding: 12px 14px;
@@ -273,7 +270,7 @@ input:focus, textarea:focus, select:focus {
   border: 1px solid rgba(255,107,107,0.22);
 }
 .bstat-label {
-  font-size: 10px; font-weight: 600; color: var(--text-3);
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.50);
   margin-bottom: 6px; letter-spacing: 0.2px;
 }
 .bstat-value {
