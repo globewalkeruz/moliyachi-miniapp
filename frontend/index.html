@@ -233,6 +233,96 @@
     </div>
   </section>
 
+  <!-- ──────────────────── BUDGET ──────────────────── -->
+  <section id="budget" class="section">
+    <div class="section-scroll">
+
+      <!-- Tabs -->
+      <div class="budget-tabs">
+        <button class="budget-tab active" data-tab="plan" onclick="switchBudgetTab('plan')">📋 Reja</button>
+        <button class="budget-tab" data-tab="analytics" onclick="switchBudgetTab('analytics')">📊 Tahlil</button>
+      </div>
+
+      <!-- ── REJA TAB ── -->
+      <div id="budget-tab-plan">
+
+        <!-- Monthly Overview -->
+        <div class="budget-overview-card">
+          <div class="budget-overview-top">
+            <h2 id="budget-month-title">Byudjet</h2>
+            <button class="refresh-btn" onclick="loadBudgetPage()">↻</button>
+          </div>
+          <div class="budget-stats-row">
+            <div class="budget-stat">
+              <p class="budget-stat-label">REJA</p>
+              <p class="budget-stat-value" id="budget-total-planned">0 so'm</p>
+            </div>
+            <div class="budget-stat">
+              <p class="budget-stat-label">SARFLANGAN</p>
+              <p class="budget-stat-value expense-text" id="budget-total-spent">0 so'm</p>
+            </div>
+            <div class="budget-stat">
+              <p class="budget-stat-label">QOLGAN</p>
+              <p class="budget-stat-value income-text" id="budget-total-remaining">0 so'm</p>
+            </div>
+          </div>
+          <div class="budget-progress-track" style="margin:14px 0 8px">
+            <div class="budget-progress-fill" id="budget-overall-bar" style="width:0%"></div>
+          </div>
+          <div class="budget-progress-labels">
+            <span id="budget-overall-pct">0%</span>
+            <span id="budget-overall-warning"></span>
+          </div>
+        </div>
+
+        <!-- Smart warning cards -->
+        <div id="budget-warnings"></div>
+
+        <!-- Category budgets header -->
+        <div class="block-header" style="padding:0 2px;margin-top:4px">
+          <h3 style="color:var(--text-2);font-size:13px;font-weight:700;letter-spacing:0.5px">KATEGORIYA REJALARI</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="link-btn" onclick="copyLastMonthPlan()" title="O'tgan oy rejasini nusxalash">📋</button>
+            <button class="link-btn" onclick="openAddBudgetModal()">+ Qo'shish</button>
+          </div>
+        </div>
+
+        <div id="budget-categories-list">
+          <div class="empty-state">
+            <span class="empty-icon">📅</span>
+            <p>Hali byudjet rejasi yo'q</p>
+            <p style="font-size:12px;margin-top:4px;color:var(--text-3)">+ Qo'shish tugmasini bosing</p>
+          </div>
+        </div>
+
+        <!-- Planned expenses header -->
+        <div class="block-header" style="padding:0 2px;margin-top:4px">
+          <h3 style="color:var(--text-2);font-size:13px;font-weight:700;letter-spacing:0.5px">REJALASHTIRILGAN TO'LOVLAR</h3>
+          <button class="link-btn" onclick="openAddPlannedModal()">+ Qo'shish</button>
+        </div>
+
+        <div id="planned-expenses-list">
+          <div class="empty-state" style="padding:20px 0 10px">
+            <span class="empty-icon">📋</span>
+            <p>Hali rejalashtirilgan to'lovlar yo'q</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── TAHLIL TAB ── -->
+      <div id="budget-tab-analytics" style="display:none">
+        <div id="budget-analytics-content">
+          <div class="empty-state">
+            <span class="empty-icon">📊</span>
+            <p>Yuklanmoqda...</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
   <!-- ──────────────────── AI ──────────────────── -->
   <section id="ai" class="section">
     <div class="ai-header">
@@ -372,16 +462,16 @@
       <span class="nav-label">Asosiy</span>
     </button>
     <button class="nav-btn" data-section="expense" onclick="navigateTo('expense')">
-      <span class="nav-icon">➖</span>
+      <span class="nav-icon">💸</span>
       <span class="nav-label">Xarajat</span>
     </button>
     <button class="nav-btn" data-section="income" onclick="navigateTo('income')">
-      <span class="nav-icon">➕</span>
+      <span class="nav-icon">💰</span>
       <span class="nav-label">Daromad</span>
     </button>
-    <button class="nav-btn" data-section="report" onclick="navigateTo('report')">
-      <span class="nav-icon">📊</span>
-      <span class="nav-label">Hisobot</span>
+    <button class="nav-btn" data-section="budget" onclick="navigateTo('budget')">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">Byudjet</span>
     </button>
     <button class="nav-btn" data-section="settings" onclick="navigateTo('settings')">
       <span class="nav-icon">⚙️</span>
@@ -418,6 +508,78 @@
       <div class="modal-actions">
         <button class="modal-cancel-btn" onclick="closeAddCategoryModal()">Bekor qilish</button>
         <button class="modal-save-btn" onclick="saveNewCategory()">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────── BUDGET LIMIT MODAL ──────────────────── -->
+  <div id="budget-modal" class="modal-overlay" onclick="if(event.target===this)closeAddBudgetModal()">
+    <div class="modal-sheet">
+      <h3 class="modal-title" id="budget-modal-title">📅 Byudjet belgilash</h3>
+
+      <p class="modal-sub">Oy</p>
+      <select id="budget-month-select" class="settings-select" style="width:100%;margin-bottom:14px"></select>
+
+      <p class="modal-sub">Kategoriya</p>
+      <select id="budget-cat-select" class="settings-select" style="width:100%;margin-bottom:14px"></select>
+
+      <p class="modal-sub">Oylik limit (so'm)</p>
+      <div class="amount-row" style="margin-bottom:4px">
+        <span class="currency-tag">UZS</span>
+        <input type="number" id="budget-limit-input" class="amount-field"
+          placeholder="0" min="0" inputmode="numeric" />
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="modal-cancel-btn" onclick="closeAddBudgetModal()">Bekor qilish</button>
+        <button class="modal-save-btn" onclick="saveBudget()">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────── PLANNED EXPENSE MODAL ──────────────────── -->
+  <div id="planned-modal" class="modal-overlay" onclick="if(event.target===this)closeAddPlannedModal()">
+    <div class="modal-sheet">
+      <h3 class="modal-title" id="planned-modal-title">📋 Rejalashtirilgan to'lov</h3>
+
+      <p class="modal-sub">To'lov nomi</p>
+      <input type="text" id="planned-name-input" class="text-field" style="margin-bottom:14px"
+        placeholder="Masalan: Uy ijarasi" maxlength="40" />
+
+      <p class="modal-sub">Summa (so'm)</p>
+      <div class="amount-row" style="margin-bottom:14px">
+        <span class="currency-tag">UZS</span>
+        <input type="number" id="planned-amount-input" class="amount-field"
+          placeholder="0" min="0" inputmode="numeric" />
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:14px">
+        <div style="flex:1">
+          <p class="modal-sub">Har oyning nechi?</p>
+          <input type="number" id="planned-day-input" class="text-field"
+            placeholder="1–31" min="1" max="31" inputmode="numeric" />
+        </div>
+        <div style="flex:2">
+          <p class="modal-sub">Kategoriya</p>
+          <select id="planned-cat-select" class="settings-select" style="width:100%"></select>
+        </div>
+      </div>
+
+      <p class="modal-sub">Takrorlanish</p>
+      <div class="modal-type-row" style="margin-bottom:4px">
+        <label class="radio-label">
+          <input type="radio" name="planned-recurring" value="true" checked />
+          <span>Har oy 🔄</span>
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="planned-recurring" value="false" />
+          <span>Bir martalik</span>
+        </label>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="modal-cancel-btn" onclick="closeAddPlannedModal()">Bekor qilish</button>
+        <button class="modal-save-btn" onclick="savePlannedExpense()">Saqlash</button>
       </div>
     </div>
   </div>
