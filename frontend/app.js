@@ -386,7 +386,7 @@ function renderPieChart(type, items) {
             font: { size: 11, family: 'Inter', weight: '600' },
             padding: 10,
             boxWidth: 12,
-            color: getComputedStyle(document.documentElement).getPropertyValue('--tg-text').trim() || '#1a1a2e',
+            color: 'rgba(255, 255, 255, 0.7)',
           },
         },
         tooltip: {
