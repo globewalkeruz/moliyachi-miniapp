@@ -418,6 +418,11 @@ input:focus, textarea:focus, select:focus {
 .empty-icon { font-size: 38px; opacity: 0.65; }
 .empty-state p { font-size: 13px; font-weight: 500; color: var(--text-3) !important; }
 
+/* ── Section tab panels (Expense / Income form vs history) ── */
+.section-tab-panel {
+  display: flex; flex-direction: column; gap: 14px;
+}
+
 /* ══════════════════════════════════════════════════════════
    FORM PAGES (Expense / Income)
 ══════════════════════════════════════════════════════════ */

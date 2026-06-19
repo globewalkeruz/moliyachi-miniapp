@@ -146,8 +146,8 @@ function navigateTo(section) {
   });
   state.currentSection = section;
   if (section === 'home')     loadHome();
-  if (section === 'expense')  loadSectionTransactions('expense');
-  if (section === 'income')   loadSectionTransactions('income');
+  if (section === 'expense')  switchSectionTab('expense', 'form');
+  if (section === 'income')   switchSectionTab('income',  'form');
   if (section === 'report')   loadReport();
   if (section === 'budget')   loadBudgetPage();
   if (section === 'settings') renderSettingsPage();
@@ -530,6 +530,16 @@ async function loadSectionTransactions(type) {
   } catch {
     container.innerHTML = `<div class="empty-state"><span class="empty-icon">⚠️</span><p>Yuklanmadi</p></div>`;
   }
+}
+
+function switchSectionTab(type, tab) {
+  haptic('light');
+  const section = document.getElementById(type);
+  section.querySelectorAll('.budget-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById(`${type}-form-tab`).style.display    = tab === 'form'    ? 'flex' : 'none';
+  document.getElementById(`${type}-history-tab`).style.display = tab === 'history' ? 'flex' : 'none';
+  if (tab === 'history') loadSectionTransactions(type);
 }
 
 document.getElementById('refresh-btn')?.addEventListener('click', () => {

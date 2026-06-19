@@ -94,34 +94,38 @@
         <h2>➖ Xarajat qo'shish</h2>
       </div>
 
-      <div class="amount-card expense-amount-card">
-        <p class="amount-card-label">Summa (so'm)</p>
-        <div class="amount-row">
-          <span class="currency-tag">UZS</span>
-          <input type="number" id="expense-amount" class="amount-field"
-            placeholder="0" min="0" inputmode="numeric" />
+      <div class="budget-tabs">
+        <button class="budget-tab active" data-tab="form" onclick="switchSectionTab('expense','form')">➕ Qo'shish</button>
+        <button class="budget-tab" data-tab="history" onclick="switchSectionTab('expense','history')">📋 Tarix</button>
+      </div>
+
+      <div id="expense-form-tab" class="section-tab-panel">
+        <div class="amount-card expense-amount-card">
+          <p class="amount-card-label">Summa (so'm)</p>
+          <div class="amount-row">
+            <span class="currency-tag">UZS</span>
+            <input type="number" id="expense-amount" class="amount-field"
+              placeholder="0" min="0" inputmode="numeric" />
+          </div>
         </div>
-      </div>
 
-      <div class="form-block">
-        <p class="form-label">Kategoriya</p>
-        <div class="categories-grid" id="expense-categories"></div>
-      </div>
-
-      <div class="form-block">
-        <p class="form-label">Izoh <span class="optional">(ixtiyoriy)</span></p>
-        <input type="text" id="expense-description" class="text-field"
-          placeholder="Qisqacha izoh..." maxlength="100" />
-      </div>
-
-      <button class="submit-btn expense-submit-btn" onclick="submitTransaction('expense')">
-        ➖ &nbsp;Xarajat qo'shish
-      </button>
-
-      <div class="card-block">
-        <div class="block-header">
-          <h3>So'nggi xarajatlar</h3>
+        <div class="form-block">
+          <p class="form-label">Kategoriya</p>
+          <div class="categories-grid" id="expense-categories"></div>
         </div>
+
+        <div class="form-block">
+          <p class="form-label">Izoh <span class="optional">(ixtiyoriy)</span></p>
+          <input type="text" id="expense-description" class="text-field"
+            placeholder="Qisqacha izoh..." maxlength="100" />
+        </div>
+
+        <button class="submit-btn expense-submit-btn" onclick="submitTransaction('expense')">
+          ➖ &nbsp;Xarajat qo'shish
+        </button>
+      </div>
+
+      <div id="expense-history-tab" class="section-tab-panel" style="display:none">
         <div id="expense-transactions">
           <div class="empty-state" style="padding:16px 0">
             <span class="empty-icon">💸</span>
@@ -141,34 +145,38 @@
         <h2>➕ Daromad qo'shish</h2>
       </div>
 
-      <div class="amount-card income-amount-card">
-        <p class="amount-card-label">Summa (so'm)</p>
-        <div class="amount-row">
-          <span class="currency-tag">UZS</span>
-          <input type="number" id="income-amount" class="amount-field"
-            placeholder="0" min="0" inputmode="numeric" />
+      <div class="budget-tabs">
+        <button class="budget-tab active" data-tab="form" onclick="switchSectionTab('income','form')">➕ Qo'shish</button>
+        <button class="budget-tab" data-tab="history" onclick="switchSectionTab('income','history')">📋 Tarix</button>
+      </div>
+
+      <div id="income-form-tab" class="section-tab-panel">
+        <div class="amount-card income-amount-card">
+          <p class="amount-card-label">Summa (so'm)</p>
+          <div class="amount-row">
+            <span class="currency-tag">UZS</span>
+            <input type="number" id="income-amount" class="amount-field"
+              placeholder="0" min="0" inputmode="numeric" />
+          </div>
         </div>
-      </div>
 
-      <div class="form-block">
-        <p class="form-label">Kategoriya</p>
-        <div class="categories-grid" id="income-categories"></div>
-      </div>
-
-      <div class="form-block">
-        <p class="form-label">Izoh <span class="optional">(ixtiyoriy)</span></p>
-        <input type="text" id="income-description" class="text-field"
-          placeholder="Qisqacha izoh..." maxlength="100" />
-      </div>
-
-      <button class="submit-btn income-submit-btn" onclick="submitTransaction('income')">
-        ➕ &nbsp;Daromad qo'shish
-      </button>
-
-      <div class="card-block">
-        <div class="block-header">
-          <h3>So'nggi daromadlar</h3>
+        <div class="form-block">
+          <p class="form-label">Kategoriya</p>
+          <div class="categories-grid" id="income-categories"></div>
         </div>
+
+        <div class="form-block">
+          <p class="form-label">Izoh <span class="optional">(ixtiyoriy)</span></p>
+          <input type="text" id="income-description" class="text-field"
+            placeholder="Qisqacha izoh..." maxlength="100" />
+        </div>
+
+        <button class="submit-btn income-submit-btn" onclick="submitTransaction('income')">
+          ➕ &nbsp;Daromad qo'shish
+        </button>
+      </div>
+
+      <div id="income-history-tab" class="section-tab-panel" style="display:none">
         <div id="income-transactions">
           <div class="empty-state" style="padding:16px 0">
             <span class="empty-icon">💰</span>
