@@ -11,5 +11,5 @@ services:
         sync: false
       - key: WEBHOOK_URL
         sync: false
-    autoDeploy: false
+    autoDeploy: true
     healthCheckPath: /
