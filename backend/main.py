@@ -86,6 +86,15 @@ async def get_transactions(user_id: int, limit: int = 50):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/api/transactions/{user_id}")
+async def clear_transactions(user_id: int):
+    try:
+        deleted = await database.clear_user_transactions(user_id)
+        return {"success": True, "deleted": deleted}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ──────────────────────────────────────────────
 # Balance
 # ──────────────────────────────────────────────

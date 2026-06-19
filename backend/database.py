@@ -83,6 +83,15 @@ async def get_monthly_report(user_id: int):
             return [dict(row) for row in rows]
 
 
+async def clear_user_transactions(user_id: int) -> int:
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        cursor = await db.execute(
+            "DELETE FROM transactions WHERE user_id = ?", (user_id,)
+        )
+        await db.commit()
+        return cursor.rowcount
+
+
 async def ensure_user(telegram_id: int, first_name: str, last_name: str = None, username: str = None):
     async with aiosqlite.connect(str(DB_PATH)) as db:
         await db.execute(
