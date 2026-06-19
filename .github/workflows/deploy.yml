@@ -1,0 +1,33 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: Trigger Render deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        run: |
+          DEPLOY=$(curl -sf -X POST \
+            "https://api.render.com/v1/services/srv-d8qgrd3tqb8s73bmgeg0/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":"do_not_clear"}')
+          echo "Deploy triggered: $(echo $DEPLOY | grep -o '\"id\":\"[^\"]*\"' | head -1)"
+
+      - name: Wait for live
+        run: |
+          for i in $(seq 1 20); do
+            STATUS=$(curl -sf \
+              "https://api.render.com/v1/services/srv-d8qgrd3tqb8s73bmgeg0/deploys?limit=1" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              | grep -o '"status":"[^"]*"' | head -1)
+            echo "  $STATUS"
+            echo "$STATUS" | grep -qE '"(live|failed)"' && break
+            sleep 15
+          done
+          echo "$STATUS" | grep -q '"live"' && echo "✅ Deploy live" || { echo "❌ Deploy failed"; exit 1; }
