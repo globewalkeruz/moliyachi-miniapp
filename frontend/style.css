@@ -680,8 +680,8 @@ input:focus, textarea:focus, select:focus {
 .nav-btn.active::before { width: 32px; }
 .nav-btn.active .nav-icon { filter: drop-shadow(0 0 8px rgba(167,139,250,0.7)); }
 .nav-btn:active { transform: scale(0.86); }
-.nav-icon  { font-size: 22px; line-height: 1; }
-.nav-label { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; }
+.nav-icon  { font-size: 20px; line-height: 1; }
+.nav-label { font-size: 9px; font-weight: 600; letter-spacing: 0.1px; }
 
 /* ══════════════════════════════════════════════════════════
    SCROLLBAR
