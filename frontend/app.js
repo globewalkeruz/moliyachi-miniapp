@@ -75,6 +75,19 @@ function fmt(amount) {
   return Math.round(Math.abs(amount)).toLocaleString('ru-RU');
 }
 
+function updateBalanceDOM(balance, income, expense) {
+  const balEl = document.getElementById('balance-amount');
+  const incEl = document.getElementById('home-income');
+  const expEl = document.getElementById('home-expense');
+  if (balEl) {
+    const neg = balance < 0;
+    balEl.innerHTML = `${neg ? '−' : ''}${fmt(balance)} <span>so'm</span>`;
+    balEl.style.opacity = neg ? '0.85' : '1';
+  }
+  if (incEl) incEl.textContent = `+${fmt(income)} so'm`;
+  if (expEl) expEl.textContent = `-${fmt(expense)} so'm`;
+}
+
 function showToast(msg, type = '') {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -122,11 +135,10 @@ async function loadHome() {
 async function loadBalance() {
   try {
     const data = await apiFetch(`/api/balance/${state.userId}`);
-    const bal = data.balance ?? 0;
-    document.getElementById('balance-amount').innerHTML =
-      `${fmt(bal)} <span>so'm</span>`;
-    document.getElementById('home-income').textContent  = `+${fmt(data.month_income ?? 0)} so'm`;
-    document.getElementById('home-expense').textContent = `-${fmt(data.month_expense ?? 0)} so'm`;
+    state.cachedBalance = data.balance      ?? 0;
+    state.cachedIncome  = data.total_income  ?? 0;
+    state.cachedExpense = data.total_expense ?? 0;
+    updateBalanceDOM(state.cachedBalance, state.cachedIncome, state.cachedExpense);
   } catch {
     document.getElementById('balance-amount').innerHTML = '0 <span>so\'m</span>';
   }
@@ -289,13 +301,20 @@ async function submitTransaction(type) {
     haptic('success');
     showToast("✅ Muvaffaqiyatli saqlandi!", 'success');
 
+    // Optimistic balance update — visible immediately, no wait for navigation
+    const delta = type === 'income' ? amount : -amount;
+    state.cachedBalance = (state.cachedBalance ?? 0) + delta;
+    state.cachedIncome  = (state.cachedIncome  ?? 0) + (type === 'income'  ? amount : 0);
+    state.cachedExpense = (state.cachedExpense ?? 0) + (type === 'expense' ? amount : 0);
+    updateBalanceDOM(state.cachedBalance, state.cachedIncome, state.cachedExpense);
+
     // Reset form
     amountInput.value = '';
     if (descInput) descInput.value = '';
     state[catKey] = null;
     document.querySelectorAll(`#${type}-categories .cat-btn`).forEach(b => b.classList.remove('selected'));
 
-    // Navigate home after brief delay
+    // Navigate home after brief delay (loadBalance will confirm with server)
     setTimeout(() => navigateTo('home'), 700);
   } catch (e) {
     haptic('error');

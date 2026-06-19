@@ -51,34 +51,20 @@ async def get_transactions(user_id: int, limit: int = 50):
             return [dict(row) for row in rows]
 
 
-async def get_balance(user_id: int) -> float:
+async def get_total_stats(user_id: int) -> tuple[float, float]:
+    """Return (total_income, total_expense) across all time."""
     async with aiosqlite.connect(str(DB_PATH)) as db:
         async with db.execute(
-            """SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END), 0)
+            """SELECT
+               COALESCE(SUM(CASE WHEN type='income'  THEN amount ELSE 0 END), 0),
+               COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END), 0)
                FROM transactions WHERE user_id = ?""",
             (user_id,),
         ) as cursor:
             row = await cursor.fetchone()
-            return float(row[0]) if row else 0.0
-
-
-async def get_monthly_stats(user_id: int) -> tuple[float, float]:
-    async with aiosqlite.connect(str(DB_PATH)) as db:
-        async with db.execute(
-            """SELECT type, COALESCE(SUM(amount), 0) as total
-               FROM transactions
-               WHERE user_id = ?
-               AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now', 'localtime')
-               GROUP BY type""",
-            (user_id,),
-        ) as cursor:
-            income, expense = 0.0, 0.0
-            async for row in cursor:
-                if row[0] == "income":
-                    income = float(row[1])
-                else:
-                    expense = float(row[1])
-            return income, expense
+            if row:
+                return float(row[0]), float(row[1])
+            return 0.0, 0.0
 
 
 async def get_monthly_report(user_id: int):

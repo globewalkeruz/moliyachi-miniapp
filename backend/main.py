@@ -93,12 +93,11 @@ async def get_transactions(user_id: int, limit: int = 50):
 @app.get("/api/balance/{user_id}")
 async def get_balance(user_id: int):
     try:
-        balance = await database.get_balance(user_id)
-        income, expense = await database.get_monthly_stats(user_id)
+        total_income, total_expense = await database.get_total_stats(user_id)
         return {
-            "balance": balance,
-            "month_income": income,
-            "month_expense": expense,
+            "balance": total_income - total_expense,
+            "total_income": total_income,
+            "total_expense": total_expense,
             "user_id": user_id,
         }
     except Exception as e:
@@ -160,13 +159,13 @@ async def get_currency():
 @app.post("/api/ai-advice")
 async def ai_advice(data: AIAdviceRequest):
     try:
-        balance = await database.get_balance(data.user_id)
-        income, expense = await database.get_monthly_stats(data.user_id)
+        total_income, total_expense = await database.get_total_stats(data.user_id)
+        balance = total_income - total_expense
         summary = (
             f"Umumiy balans: {balance:,.0f} so'm\n"
-            f"Bu oylik daromad: {income:,.0f} so'm\n"
-            f"Bu oylik xarajat: {expense:,.0f} so'm\n"
-            f"Tejash: {(income - expense):,.0f} so'm"
+            f"Jami daromad: {total_income:,.0f} so'm\n"
+            f"Jami xarajat: {total_expense:,.0f} so'm\n"
+            f"Tejash: {balance:,.0f} so'm"
         )
         advice = await get_financial_advice(data.message, summary)
         return {"advice": advice}
