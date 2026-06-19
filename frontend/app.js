@@ -81,7 +81,30 @@ function initTelegram() {
   try { tg.setBackgroundColor('#0f0c29'); } catch (_) {}
   try { tg.setHeaderColor('#0f0c29'); }    catch (_) {}
   const user = tg.initDataUnsafe?.user;
-  if (user?.id) state.userId = user.id;
+  if (user?.id) {
+    state.userId    = user.id;
+    state.userName  = user.first_name || '';
+    state.userPhoto = user.photo_url  || null;
+    renderUserGreeting();
+  }
+}
+
+function renderUserGreeting() {
+  const greetEl  = document.getElementById('balance-greeting');
+  const avatarEl = document.getElementById('user-avatar');
+  if (!greetEl) return;
+
+  if (state.userName) {
+    const hour = new Date().getHours();
+    const greet = hour < 12 ? 'Xayrli tong' : hour < 18 ? 'Xayrli kun' : 'Xayrli kech';
+    greetEl.textContent = `${greet}, ${state.userName}! 👋`;
+  }
+
+  if (state.userPhoto && avatarEl) {
+    avatarEl.style.display = '';
+    avatarEl.innerHTML =
+      `<img src="${state.userPhoto}" class="user-avatar-img" alt="avatar" />`;
+  }
 }
 
 function haptic(type = 'light') {
@@ -130,10 +153,16 @@ function navigateTo(section) {
 
 // ── API helpers ───────────────────────────────────────────
 async function apiFetch(path, opts = {}) {
-  const res = await fetch(BASE_URL + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  });
+  const initData = tg?.initData || '';
+  const headers  = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+  const res = await fetch(BASE_URL + path, { headers, ...opts });
+
+  if (res.status === 401) {
+    showToast("Autentifikatsiya xatosi — Telegramdan oching", 'error');
+    throw new Error('Unauthorized');
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

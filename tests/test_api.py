@@ -12,6 +12,9 @@ from fastapi.testclient import TestClient
 # Make backend importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
+# Bypass Telegram auth validation in tests
+os.environ["TESTING"] = "true"
+
 # Redirect DB to a temp file BEFORE importing main so every function
 # in database.py picks up the new DB_PATH from its module globals.
 _tmp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
@@ -41,6 +44,18 @@ def add_tx(client, amount, type_, category, description=None, user_id=TEST_USER)
         'category': category,
         'description': description,
     })
+
+
+# ══════════════════════════════════════════════════════════
+# AUTH
+# ══════════════════════════════════════════════════════════
+def test_auth_me_dev_mode(client):
+    """In TESTING mode auth returns dev user without initData."""
+    r = client.get('/api/auth/me')
+    assert r.status_code == 200
+    body = r.json()
+    assert body['authenticated'] is True
+    assert 'user' in body
 
 
 # ══════════════════════════════════════════════════════════

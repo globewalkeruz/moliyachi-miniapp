@@ -39,10 +39,13 @@
       <div class="balance-card">
         <div class="balance-card-top">
           <div>
-            <p class="balance-label">Umumiy balans</p>
+            <p class="balance-label" id="balance-greeting">Umumiy balans</p>
             <h1 class="balance-amount" id="balance-amount">0 <span>so'm</span></h1>
           </div>
-          <button class="refresh-btn" id="refresh-btn" title="Yangilash">↻</button>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <button class="refresh-btn" id="refresh-btn" title="Yangilash">↻</button>
+            <div class="user-avatar" id="user-avatar" style="display:none"></div>
+          </div>
         </div>
         <div class="balance-row">
           <div class="balance-stat">

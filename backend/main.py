@@ -10,7 +10,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import database
+from auth import validate_init_data
 from currency import get_currency_rates
+from fastapi import Depends, Header
 from gemini_ai import get_financial_advice
 from models import AIAdviceRequest, TransactionCreate
 
@@ -36,6 +38,36 @@ UZBEK_MONTHS = {
 }
 
 
+# ──────────────────────────────────────────────
+# Auth dependency
+# ──────────────────────────────────────────────
+
+async def get_current_user(
+    x_telegram_init_data: str | None = Header(None, alias="X-Telegram-Init-Data"),
+) -> dict:
+    """
+    Validates Telegram initData HMAC on every request.
+    Automatically bypassed in dev/test (no TELEGRAM_TOKEN set).
+    """
+    token = os.getenv("TELEGRAM_TOKEN")
+
+    # Dev / CI mode — no bot token configured, skip validation
+    if not token or os.getenv("TESTING") == "true":
+        return {"id": 0, "first_name": "Developer"}
+
+    if not x_telegram_init_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Send X-Telegram-Init-Data header.",
+        )
+
+    user = validate_init_data(x_telegram_init_data, token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid Telegram authentication")
+
+    return user
+
+
 @app.on_event("startup")
 async def startup():
     await database.init_db()
@@ -59,11 +91,23 @@ async def serve_frontend():
 
 
 # ──────────────────────────────────────────────
+# Auth
+# ──────────────────────────────────────────────
+
+@app.get("/api/auth/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    return {"user": user, "authenticated": True}
+
+
+# ──────────────────────────────────────────────
 # Transactions
 # ──────────────────────────────────────────────
 
 @app.post("/api/transaction")
-async def add_transaction(data: TransactionCreate):
+async def add_transaction(
+    data: TransactionCreate,
+    _: dict = Depends(get_current_user),
+):
     try:
         await database.add_transaction(
             user_id=data.user_id,
@@ -78,7 +122,11 @@ async def add_transaction(data: TransactionCreate):
 
 
 @app.get("/api/transactions/{user_id}")
-async def get_transactions(user_id: int, limit: int = 50):
+async def get_transactions(
+    user_id: int,
+    limit: int = 50,
+    _: dict = Depends(get_current_user),
+):
     try:
         txs = await database.get_transactions(user_id, limit)
         return {"transactions": txs}
@@ -87,7 +135,10 @@ async def get_transactions(user_id: int, limit: int = 50):
 
 
 @app.delete("/api/transactions/{user_id}")
-async def clear_transactions(user_id: int):
+async def clear_transactions(
+    user_id: int,
+    _: dict = Depends(get_current_user),
+):
     try:
         deleted = await database.clear_user_transactions(user_id)
         return {"success": True, "deleted": deleted}
@@ -100,7 +151,10 @@ async def clear_transactions(user_id: int):
 # ──────────────────────────────────────────────
 
 @app.get("/api/balance/{user_id}")
-async def get_balance(user_id: int):
+async def get_balance(
+    user_id: int,
+    _: dict = Depends(get_current_user),
+):
     try:
         total_income, total_expense = await database.get_total_stats(user_id)
         return {
@@ -118,7 +172,10 @@ async def get_balance(user_id: int):
 # ──────────────────────────────────────────────
 
 @app.get("/api/report/{user_id}")
-async def get_report(user_id: int):
+async def get_report(
+    user_id: int,
+    _: dict = Depends(get_current_user),
+):
     try:
         report_data = await database.get_monthly_report(user_id)
         income_by_cat: dict[str, float] = {}
@@ -153,7 +210,7 @@ async def get_report(user_id: int):
 # ──────────────────────────────────────────────
 
 @app.get("/api/currency")
-async def get_currency():
+async def get_currency(_: dict = Depends(get_current_user)):
     try:
         rates = await get_currency_rates()
         return {"rates": rates, "updated": datetime.now().isoformat()}
@@ -166,7 +223,10 @@ async def get_currency():
 # ──────────────────────────────────────────────
 
 @app.post("/api/ai-advice")
-async def ai_advice(data: AIAdviceRequest):
+async def ai_advice(
+    data: AIAdviceRequest,
+    _: dict = Depends(get_current_user),
+):
     try:
         total_income, total_expense = await database.get_total_stats(data.user_id)
         balance = total_income - total_expense

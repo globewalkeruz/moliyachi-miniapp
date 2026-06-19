@@ -270,6 +270,13 @@ input:focus, textarea:focus, select:focus {
 }
 .refresh-btn:active { transform: rotate(180deg) scale(0.88); background: rgba(255,255,255,0.22); }
 
+.user-avatar-img {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid rgba(167,139,250,0.50);
+  object-fit: cover;
+  box-shadow: 0 0 10px rgba(167,139,250,0.35);
+}
+
 .balance-row {
   display: flex; align-items: center;
   background: rgba(255,255,255,0.07);
