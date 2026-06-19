@@ -557,7 +557,8 @@ function renderCategories(type) {
   grid.innerHTML = cats.map(c => `
     <button class="cat-btn${c.isCustom ? ' cat-btn-custom' : ''}"
       data-id="${c.id}"
-      onclick="selectCategory('${type}', '${c.id}', this)">
+      data-type="${type}"
+      onclick="selectCategory(this.dataset.type, this.dataset.id, this)">
       <span class="cat-emoji">${c.emoji}</span>
       <span>${c.id}</span>
     </button>`
