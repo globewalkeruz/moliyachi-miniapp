@@ -51,19 +51,12 @@ function initTelegram() {
   tg.ready();
   tg.expand();
 
+  // Force dark native chrome so our gradient shows correctly
+  try { tg.setBackgroundColor('#0f0c29'); } catch (_) {}
+  try { tg.setHeaderColor('#0f0c29'); }    catch (_) {}
+
   const user = tg.initDataUnsafe?.user;
   if (user?.id) state.userId = user.id;
-
-  // Apply Telegram theme to CSS
-  const tp = tg.themeParams || {};
-  const root = document.documentElement.style;
-  if (tp.bg_color)           root.setProperty('--tg-theme-bg-color',           tp.bg_color);
-  if (tp.text_color)         root.setProperty('--tg-theme-text-color',         tp.text_color);
-  if (tp.hint_color)         root.setProperty('--tg-theme-hint-color',         tp.hint_color);
-  if (tp.link_color)         root.setProperty('--tg-theme-link-color',         tp.link_color);
-  if (tp.button_color)       root.setProperty('--tg-theme-button-color',       tp.button_color);
-  if (tp.button_text_color)  root.setProperty('--tg-theme-button-text-color',  tp.button_text_color);
-  if (tp.secondary_bg_color) root.setProperty('--tg-theme-secondary-bg-color', tp.secondary_bg_color);
 }
 
 function haptic(type = 'light') {
