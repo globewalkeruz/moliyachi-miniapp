@@ -1,41 +1,119 @@
 """
 API integration tests for Moliyachi backend.
-Uses FastAPI TestClient with an isolated temp SQLite database.
+Uses in-memory function mocks so no real Supabase credentials are required in CI.
 """
 import sys
 import os
-import tempfile
-import pathlib
+from collections import defaultdict
+from datetime import datetime
+from typing import Optional
+
 import pytest
 from fastapi.testclient import TestClient
 
 # Make backend importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
-# Bypass Telegram auth validation in tests
+# Bypass Telegram auth and prevent real Supabase connections
 os.environ["TESTING"] = "true"
+os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
+os.environ.setdefault("SUPABASE_KEY", "fake-service-role-key")
 
-# Redirect DB to a temp file BEFORE importing main so every function
-# in database.py picks up the new DB_PATH from its module globals.
-_tmp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
-_tmp.close()
-import database
-database.DB_PATH = pathlib.Path(_tmp.name)
+# ── In-memory store (shared state across the test module) ─────────────────────
+_transactions: list[dict] = []
+_id_counter = [0]
 
-from main import app   # noqa: E402  (must come after DB patch)
+
+# ── Mock implementations of every database.py function ───────────────────────
+async def _mock_init_db():
+    pass
+
+
+async def _mock_add_transaction(
+    user_id: int, amount: float, type: str, category: str, description: Optional[str] = None
+):
+    _id_counter[0] += 1
+    _transactions.append({
+        "id": str(_id_counter[0]),
+        "user_id": user_id,
+        "amount": abs(amount),
+        "type": type,
+        "category": category,
+        "description": description,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    })
+
+
+async def _mock_get_transactions(user_id: int, limit: int = 50):
+    user_txs = [t for t in _transactions if t["user_id"] == user_id]
+    return list(reversed(user_txs))[:limit]
+
+
+async def _mock_get_total_stats(user_id: int) -> tuple[float, float]:
+    user_txs = [t for t in _transactions if t["user_id"] == user_id]
+    income = sum(t["amount"] for t in user_txs if t["type"] == "income")
+    expense = sum(t["amount"] for t in user_txs if t["type"] == "expense")
+    return float(income), float(expense)
+
+
+async def _mock_get_monthly_report(user_id: int):
+    user_txs = [t for t in _transactions if t["user_id"] == user_id]
+    totals: dict = defaultdict(float)
+    for t in user_txs:
+        totals[(t["type"], t["category"])] += t["amount"]
+    return [
+        {"type": k[0], "category": k[1], "total": v}
+        for k, v in sorted(totals.items(), key=lambda x: -x[1])
+    ]
+
+
+async def _mock_clear_user_transactions(user_id: int) -> int:
+    to_remove = [t for t in _transactions if t["user_id"] == user_id]
+    for t in to_remove:
+        _transactions.remove(t)
+    return len(to_remove)
+
+
+async def _mock_delete_transaction(transaction_id: str, user_id: int) -> bool:
+    for i, t in enumerate(_transactions):
+        if str(t["id"]) == str(transaction_id) and t["user_id"] == user_id:
+            _transactions.pop(i)
+            return True
+    return False
+
+
+async def _mock_ensure_user(
+    telegram_id: int, first_name: str, last_name: str = None, username: str = None
+):
+    pass
+
+
+# ── Patch database module BEFORE importing main ───────────────────────────────
+import database  # noqa: E402
+
+database.init_db = _mock_init_db
+database.add_transaction = _mock_add_transaction
+database.get_transactions = _mock_get_transactions
+database.get_total_stats = _mock_get_total_stats
+database.get_monthly_report = _mock_get_monthly_report
+database.clear_user_transactions = _mock_clear_user_transactions
+database.delete_transaction = _mock_delete_transaction
+database.ensure_user = _mock_ensure_user
+
+from main import app  # noqa: E402
 
 TEST_USER = 99999
 ALT_USER  = 88888
 
 
-# ── Session fixture: start app (triggers startup → init_db) ───────────────
+# ── Session fixture: start app (triggers startup → init_db mock) ──────────────
 @pytest.fixture(scope='module')
 def client():
     with TestClient(app) as c:
         yield c
 
 
-# ── Helper ────────────────────────────────────────────────────────────────
+# ── Helper ────────────────────────────────────────────────────────────────────
 def add_tx(client, amount, type_, category, description=None, user_id=TEST_USER):
     return client.post('/api/transaction', json={
         'user_id': user_id,

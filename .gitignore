@@ -17,6 +17,7 @@ env/
 
 # Environment / secrets
 .env
+migrate_to_supabase.py
 
 # Database
 *.db

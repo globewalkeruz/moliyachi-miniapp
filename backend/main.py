@@ -148,7 +148,7 @@ async def clear_transactions(
 
 @app.delete("/api/transaction/{transaction_id}")
 async def delete_single_transaction(
-    transaction_id: int,
+    transaction_id: str,
     user_id: int,
     _: dict = Depends(get_current_user),
 ):

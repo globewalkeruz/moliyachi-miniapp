@@ -493,7 +493,7 @@ function txHTML(tx) {
       </div>
       <div class="tx-right">
         <span class="tx-amount ${cls}-text">${sign}${fmt(tx.amount)} so'm</span>
-        <button class="tx-delete-btn" onclick="deleteTransaction(${tx.id})" title="O'chirish">🗑️</button>
+        <button class="tx-delete-btn" onclick="deleteTransaction('${tx.id}')" title="O'chirish">🗑️</button>
       </div>
     </div>`;
 }
