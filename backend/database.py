@@ -92,6 +92,16 @@ async def clear_user_transactions(user_id: int) -> int:
         return cursor.rowcount
 
 
+async def delete_transaction(transaction_id: int, user_id: int) -> bool:
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        cursor = await db.execute(
+            "DELETE FROM transactions WHERE id = ? AND user_id = ?",
+            (transaction_id, user_id),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
 async def ensure_user(telegram_id: int, first_name: str, last_name: str = None, username: str = None):
     async with aiosqlite.connect(str(DB_PATH)) as db:
         await db.execute(

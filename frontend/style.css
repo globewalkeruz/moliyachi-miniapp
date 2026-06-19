@@ -392,7 +392,21 @@ input:focus, textarea:focus, select:focus {
 .tx-category { font-size: 14px; font-weight: 600; color: #ffffff !important; }
 .tx-desc     { font-size: 11px; color: var(--text-3) !important; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-date     { font-size: 10px; color: var(--text-4) !important; }
-.tx-amount   { font-size: 15px; font-weight: 700; text-align: right; flex-shrink: 0; }
+.tx-right {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0;
+}
+.tx-amount   { font-size: 15px; font-weight: 700; text-align: right; }
+.tx-delete-btn {
+  width: 28px; height: 28px;
+  background: rgba(255,107,107,0.10);
+  border: 1px solid rgba(255,107,107,0.22);
+  border-radius: var(--radius-sm);
+  color: rgba(255,107,107,0.70) !important;
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--ease);
+}
+.tx-delete-btn:active { background: rgba(255,107,107,0.28); transform: scale(0.86); }
 
 /* ══════════════════════════════════════════════════════════
    EMPTY STATE

@@ -146,6 +146,8 @@ function navigateTo(section) {
   });
   state.currentSection = section;
   if (section === 'home')     loadHome();
+  if (section === 'expense')  loadSectionTransactions('expense');
+  if (section === 'income')   loadSectionTransactions('income');
   if (section === 'report')   loadReport();
   if (section === 'budget')   loadBudgetPage();
   if (section === 'settings') renderSettingsPage();
@@ -482,15 +484,52 @@ function txHTML(tx) {
   const time     = tx.created_at ? tx.created_at.slice(11, 16) : '';
   const date     = tx.created_at ? tx.created_at.slice(0, 10)  : '';
   return `
-    <div class="tx-item">
+    <div class="tx-item" id="tx-${tx.id}">
       <div class="tx-emoji ${cls}-emoji">${emoji}</div>
       <div class="tx-info">
         <p class="tx-category">${tx.category}</p>
         <p class="tx-desc">${tx.description || (tx.type === 'income' ? 'Daromad' : 'Xarajat')}</p>
         <p class="tx-date">${date} ${time}</p>
       </div>
-      <span class="tx-amount ${cls}-text">${sign}${fmt(tx.amount)} so'm</span>
+      <div class="tx-right">
+        <span class="tx-amount ${cls}-text">${sign}${fmt(tx.amount)} so'm</span>
+        <button class="tx-delete-btn" onclick="deleteTransaction(${tx.id})" title="O'chirish">🗑️</button>
+      </div>
     </div>`;
+}
+
+async function deleteTransaction(txId) {
+  haptic('medium');
+  try {
+    await apiFetch(`/api/transaction/${txId}?user_id=${state.userId}`, { method: 'DELETE' });
+    document.getElementById(`tx-${txId}`)?.remove();
+    await loadBalance();
+    haptic('success');
+    showToast("✅ Tranzaksiya o'chirildi", 'success');
+  } catch {
+    haptic('error');
+    showToast("Xato yuz berdi", 'error');
+  }
+}
+
+async function loadSectionTransactions(type) {
+  const container = document.getElementById(`${type}-transactions`);
+  if (!container) return;
+  try {
+    const data = await apiFetch(`/api/transactions/${state.userId}?limit=20`);
+    const txs  = (data.transactions ?? []).filter(tx => tx.type === type);
+    if (!txs.length) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding:16px 0">
+          <span class="empty-icon">${type === 'income' ? '💰' : '💸'}</span>
+          <p>Hali ${type === 'income' ? 'daromadlar' : 'xarajatlar'} yo'q</p>
+        </div>`;
+      return;
+    }
+    container.innerHTML = txs.map(txHTML).join('');
+  } catch {
+    container.innerHTML = `<div class="empty-state"><span class="empty-icon">⚠️</span><p>Yuklanmadi</p></div>`;
+  }
 }
 
 document.getElementById('refresh-btn')?.addEventListener('click', () => {

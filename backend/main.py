@@ -146,6 +146,23 @@ async def clear_transactions(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/api/transaction/{transaction_id}")
+async def delete_single_transaction(
+    transaction_id: int,
+    user_id: int,
+    _: dict = Depends(get_current_user),
+):
+    try:
+        deleted = await database.delete_transaction(transaction_id, user_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Tranzaksiya topilmadi")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ──────────────────────────────────────────────
 # Balance
 # ──────────────────────────────────────────────
