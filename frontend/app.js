@@ -92,7 +92,7 @@ function showToast(msg, type = '') {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.className = `toast${type ? ' ' + type : ''} show`;
-  setTimeout(() => { el.className = 'toast'; }, 3000);
+  setTimeout(() => { el.className = 'toast'; }, 2500);
 }
 
 // ── Navigation ────────────────────────────────────────────
@@ -299,7 +299,10 @@ async function submitTransaction(type) {
     });
 
     haptic('success');
-    showToast("✅ Muvaffaqiyatli saqlandi!", 'success');
+    const msg = type === 'income'
+      ? "✅ Daromad muvaffaqiyatli qo'shildi!"
+      : "✅ Xarajat muvaffaqiyatli qo'shildi!";
+    showToast(msg, 'success');
 
     // Optimistic balance update — visible immediately, no wait for navigation
     const delta = type === 'income' ? amount : -amount;

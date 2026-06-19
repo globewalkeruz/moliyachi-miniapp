@@ -145,29 +145,30 @@ a      { cursor: pointer; }
 ══════════════════════════════════════════════ */
 .toast {
   position: fixed;
-  bottom: calc(var(--nav-h) + var(--safe-bot) + 12px);
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
   left: 50%;
-  transform: translateX(-50%) translateY(20px);
+  transform: translateX(-50%) translateY(-20px);
   background: #1a1a2e;
   color: #fff;
-  padding: 10px 20px;
+  padding: 11px 22px;
   border-radius: 99px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   z-index: 500;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
+  transition: opacity 0.28s ease, transform 0.28s ease;
   white-space: nowrap;
-  max-width: 80vw;
+  max-width: 88vw;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
 }
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-.toast.success { background: var(--income); }
+.toast.success { background: #00b06b; }
 .toast.error   { background: var(--expense); }
 
 /* ══════════════════════════════════════════════
