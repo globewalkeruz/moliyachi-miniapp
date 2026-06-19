@@ -749,3 +749,75 @@ input  { font-family: inherit; outline: none; border: none; background: none; }
    SCROLLBAR
 ══════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar { width: 0; }
+
+/* ══════════════════════════════════════════════════════════
+   VISIBILITY FIXES — force white text on dark glass
+   Telegram WebApp and some browsers don't inherit body color
+   onto form elements; these rules patch that gap.
+══════════════════════════════════════════════════════════ */
+
+/* Headings */
+h1, h2, h3, h4 { color: #ffffff !important; font-weight: 700 !important; }
+
+/* Body text that may fall back to dark defaults */
+p    { color: rgba(255, 255, 255, 0.80) !important; }
+span { color: inherit; }          /* let parent decide — don't force white on badges */
+label {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-weight: 500 !important;
+}
+
+/* ── All native form controls ── */
+input, textarea, select {
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+input::placeholder, textarea::placeholder {
+  color: rgba(255, 255, 255, 0.42) !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(167, 139, 250, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* ── Amount / number input (Summa) ── */
+input[type="number"] {
+  color: #ffffff !important;
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px !important;
+}
+
+/* ── Select dropdown ── */
+select {
+  background-color: #302b63 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+select option {
+  background-color: #24243e !important;
+  color: #ffffff !important;
+}
+
+/* ── Dashboard: balance ── */
+.balance-amount { color: #ffffff !important; font-weight: 800 !important; }
+.stat-val       { color: #ffffff !important; }
+
+/* ── Dashboard: transaction list ── */
+.tx-category { color: #ffffff !important; }
+.tx-desc, .tx-date { color: rgba(255, 255, 255, 0.55) !important; }
+.tx-amount.income-text  { color: var(--income)  !important; }
+.tx-amount.expense-text { color: var(--expense) !important; }
+
+/* ── Form field text fields ── */
+.text-field  { color: #ffffff !important; background: rgba(255,255,255,0.10) !important; }
+.amount-field { color: #ffffff !important; }
+
+/* ── Report card values ── */
+.rc-value { color: #ffffff !important; }
+.rc-label { color: rgba(255, 255, 255, 0.55) !important; }
+
+/* ── Chat bubbles ── */
+.ai-bubble   { color: rgba(255, 255, 255, 0.90) !important; }
+.user-bubble { color: #ffffff !important; }
+.chat-input-field { color: #ffffff !important; }
