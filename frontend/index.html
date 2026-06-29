@@ -249,6 +249,7 @@
       <div class="budget-tabs">
         <button class="budget-tab active" data-tab="plan" onclick="switchBudgetTab('plan')">📋 Reja</button>
         <button class="budget-tab" data-tab="analytics" onclick="switchBudgetTab('analytics')">📊 Tahlil</button>
+        <button class="budget-tab" data-tab="nextmonth" onclick="switchBudgetTab('nextmonth')">🗓️ Kelasi oy</button>
       </div>
 
       <!-- ── REJA TAB ── -->
@@ -323,6 +324,16 @@
         <div id="budget-analytics-content">
           <div class="empty-state">
             <span class="empty-icon">📊</span>
+            <p>Yuklanmoqda...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── KELASI OY TAB ── -->
+      <div id="budget-tab-nextmonth" style="display:none">
+        <div id="budget-nextmonth-content">
+          <div class="empty-state">
+            <span class="empty-icon">🗓️</span>
             <p>Yuklanmoqda...</p>
           </div>
         </div>
@@ -565,33 +576,72 @@
           placeholder="0" min="0" inputmode="numeric" />
       </div>
 
-      <div style="display:flex;gap:12px;margin-bottom:14px">
-        <div style="flex:1">
-          <p class="modal-sub">Har oyning nechi?</p>
-          <input type="number" id="planned-day-input" class="text-field"
-            placeholder="1–31" min="1" max="31" inputmode="numeric" />
-        </div>
-        <div style="flex:2">
-          <p class="modal-sub">Kategoriya</p>
-          <select id="planned-cat-select" class="settings-select" style="width:100%"></select>
-        </div>
-      </div>
+      <p class="modal-sub">Kategoriya</p>
+      <select id="planned-cat-select" class="settings-select" style="width:100%;margin-bottom:14px"></select>
 
       <p class="modal-sub">Takrorlanish</p>
-      <div class="modal-type-row" style="margin-bottom:4px">
+      <div class="modal-type-row" style="margin-bottom:14px">
         <label class="radio-label">
-          <input type="radio" name="planned-recurring" value="true" checked />
+          <input type="radio" name="planned-recurring" value="true" checked onchange="togglePlannedDateFields()" />
           <span>Har oy 🔄</span>
         </label>
         <label class="radio-label">
-          <input type="radio" name="planned-recurring" value="false" />
+          <input type="radio" name="planned-recurring" value="false" onchange="togglePlannedDateFields()" />
           <span>Bir martalik</span>
         </label>
+      </div>
+
+      <!-- Shown when recurring -->
+      <div id="planned-day-row" style="margin-bottom:14px">
+        <p class="modal-sub">Har oyning nechi kuni?</p>
+        <input type="number" id="planned-day-input" class="text-field"
+          placeholder="1–31" min="1" max="31" inputmode="numeric" />
+      </div>
+
+      <!-- Shown when one-time -->
+      <div id="planned-date-row" style="margin-bottom:14px;display:none">
+        <p class="modal-sub">To'lov sanasi</p>
+        <input type="date" id="planned-date-input" class="text-field" />
       </div>
 
       <div class="modal-actions" style="margin-top:20px">
         <button class="modal-cancel-btn" onclick="closeAddPlannedModal()">Bekor qilish</button>
         <button class="modal-save-btn" onclick="savePlannedExpense()">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────── NEXT MONTH PLAN MODAL ──────────────────── -->
+  <div id="monthly-plan-modal" class="modal-overlay" onclick="if(event.target===this)closeMonthlyPlanModal()">
+    <div class="modal-sheet">
+      <h3 class="modal-title" id="monthly-plan-modal-title">💰 Daromad qo'shish</h3>
+
+      <p class="modal-sub">Nomi</p>
+      <input type="text" id="mp-name-input" class="text-field" style="margin-bottom:14px"
+        placeholder="Masalan: Maosh" maxlength="40" />
+
+      <p class="modal-sub">Summa (so'm)</p>
+      <div class="amount-row" style="margin-bottom:14px">
+        <span class="currency-tag">UZS</span>
+        <input type="number" id="mp-amount-input" class="amount-field"
+          placeholder="0" min="0" inputmode="numeric" />
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:4px">
+        <div style="flex:1">
+          <p class="modal-sub">Kun (taxminan)</p>
+          <input type="number" id="mp-day-input" class="text-field"
+            placeholder="1–31" min="1" max="31" inputmode="numeric" />
+        </div>
+        <div id="mp-cat-wrap" style="flex:2">
+          <p class="modal-sub">Kategoriya</p>
+          <select id="mp-cat-select" class="settings-select" style="width:100%"></select>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="modal-cancel-btn" onclick="closeMonthlyPlanModal()">Bekor qilish</button>
+        <button class="modal-save-btn" onclick="saveMonthlyPlan()">Saqlash</button>
       </div>
     </div>
   </div>

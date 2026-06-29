@@ -17,6 +17,7 @@ from gemini_ai import get_financial_advice
 from models import (
     AIAdviceRequest, TransactionCreate,
     CategoryCreate, BudgetUpsert, ScheduledPaymentCreate, MarkPaidRequest,
+    MonthlyPlanCreate,
 )
 
 load_dotenv()
@@ -478,6 +479,60 @@ async def mark_planned_paid(
         )
         if not updated:
             raise HTTPException(status_code=404, detail="To'lov topilmadi")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ──────────────────────────────────────────────
+# Monthly Plans (Next Month Planner)
+# ──────────────────────────────────────────────
+
+@app.get("/api/monthly-plans/{user_id}")
+async def get_monthly_plans(
+    user_id: int,
+    month: int,
+    year: int,
+    _: dict = Depends(get_current_user),
+):
+    try:
+        plans = await database.get_monthly_plans(user_id, month, year)
+        return {"plans": plans}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/monthly-plans")
+async def add_monthly_plan(data: MonthlyPlanCreate, _: dict = Depends(get_current_user)):
+    try:
+        plan = await database.add_monthly_plan(
+            user_id=data.user_id,
+            month=data.month,
+            year=data.year,
+            plan_type=data.plan_type,
+            name=data.name,
+            amount=data.amount,
+            category=data.category,
+            expected_day=data.expected_day,
+            note=data.note,
+        )
+        return {"success": True, "plan": plan}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/monthly-plans/{plan_id}")
+async def delete_monthly_plan(
+    plan_id: str,
+    user_id: int,
+    _: dict = Depends(get_current_user),
+):
+    try:
+        deleted = await database.delete_monthly_plan(plan_id, user_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Reja topilmadi")
         return {"success": True}
     except HTTPException:
         raise

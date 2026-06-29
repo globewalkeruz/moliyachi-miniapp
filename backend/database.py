@@ -267,6 +267,55 @@ async def delete_scheduled_payment(payment_id: str, user_id: int) -> bool:
     return len(result.data) > 0
 
 
+# ──────────────────────────────────────────────
+# Monthly Plans (Next Month Planner)
+# ──────────────────────────────────────────────
+
+async def get_monthly_plans(user_id: int, month: int, year: int) -> list:
+    def _query():
+        return _get_client().table("monthly_plans") \
+            .select("*") \
+            .eq("telegram_user_id", user_id) \
+            .eq("month", month) \
+            .eq("year", year) \
+            .order("expected_day", nullsfirst=False) \
+            .execute()
+    result = await asyncio.to_thread(_query)
+    return result.data
+
+
+async def add_monthly_plan(
+    user_id: int, month: int, year: int, plan_type: str,
+    name: str, amount: float, category: str = '',
+    expected_day: int = None, note: str = None
+) -> dict | None:
+    def _insert():
+        return _get_client().table("monthly_plans").insert({
+            "telegram_user_id": user_id,
+            "month": month,
+            "year": year,
+            "plan_type": plan_type,
+            "name": name,
+            "amount": amount,
+            "category": category,
+            "expected_day": expected_day,
+            "note": note,
+        }).execute()
+    result = await asyncio.to_thread(_insert)
+    return result.data[0] if result.data else None
+
+
+async def delete_monthly_plan(plan_id: str, user_id: int) -> bool:
+    def _delete():
+        return _get_client().table("monthly_plans") \
+            .delete() \
+            .eq("id", plan_id) \
+            .eq("telegram_user_id", user_id) \
+            .execute()
+    result = await asyncio.to_thread(_delete)
+    return len(result.data) > 0
+
+
 async def mark_scheduled_payment_paid(payment_id: str, user_id: int, month_key: str) -> bool:
     def _get():
         return _get_client().table("scheduled_payments") \

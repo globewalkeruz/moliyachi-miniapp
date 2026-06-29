@@ -45,3 +45,15 @@ class ScheduledPaymentCreate(BaseModel):
 class MarkPaidRequest(BaseModel):
     user_id: int
     month_key: str  # "YYYY-MM"
+
+
+class MonthlyPlanCreate(BaseModel):
+    user_id: int
+    month: int
+    year: int
+    plan_type: str  # 'income' | 'expense'
+    name: str
+    amount: float
+    category: str = ''
+    expected_day: Optional[int] = None
+    note: Optional[str] = None

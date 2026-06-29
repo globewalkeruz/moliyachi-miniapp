@@ -39,6 +39,18 @@ const UZBEK_MONTHS = {
   7:'Iyul', 8:'Avgust', 9:'Sentabr', 10:'Oktabr', 11:'Noyabr', 12:'Dekabr',
 };
 
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getDate()}-${UZBEK_MONTHS[d.getMonth() + 1]} ${d.getFullYear()}`;
+}
+
+function nextMonthInfo() {
+  const now = new Date();
+  const m = now.getMonth() + 2;
+  return { month: m > 12 ? 1 : m, year: m > 12 ? now.getFullYear() + 1 : now.getFullYear() };
+}
+
 const EMOJI_PICKER = [
   '🍕','🚗','💡','👕','💊','📚','🎮','🏠',
   '✈️','🎁','💰','🛒','🔧','📱','🎵','🏋️',
@@ -68,9 +80,12 @@ const state = {
   cachedIncome: 0,
   cachedExpense: 0,
   // Supabase-backed data caches (populated on init)
-  categories: [],   // [{ dbId, name, emoji, type }]
-  budgets: {},      // { "YYYY-MM": { categoryName: limitAmount } }
-  planned: [],      // [{ id(uuid), name, amount, dayOfMonth, category, recurring, paidMonths[] }]
+  categories: [],      // [{ dbId, name, emoji, type }]
+  budgets: {},         // { "YYYY-MM": { categoryName: limitAmount } }
+  planned: [],         // [{ id, name, amount, dayOfMonth, dueDate, category, recurring, paidMonths[] }]
+  monthlyPlans: [],    // next month planner items
+  mpMonth: null,       // currently loaded next-month planner month
+  mpYear: null,
 };
 
 let selectedEmoji = '🏷️';
@@ -814,13 +829,16 @@ function getCatEmoji(catName, type) {
 
 // ── Tab switching ─────────────────────────────────────────
 function switchBudgetTab(tab) {
-  document.querySelectorAll('.budget-tab').forEach(b =>
+  document.querySelectorAll('#budget .budget-tab').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('budget-tab-plan').style.display =
     tab === 'plan' ? '' : 'none';
   document.getElementById('budget-tab-analytics').style.display =
     tab === 'analytics' ? '' : 'none';
+  document.getElementById('budget-tab-nextmonth').style.display =
+    tab === 'nextmonth' ? '' : 'none';
   if (tab === 'analytics') renderBudgetAnalytics();
+  if (tab === 'nextmonth') loadNextMonthPlanner();
 }
 
 // ── Main page loader ──────────────────────────────────────
@@ -1125,11 +1143,13 @@ async function copyLastMonthPlan() {
 
 // ── Planned recurring expenses ────────────────────────────
 function renderPlannedExpenses() {
-  const planned   = loadPlanned();
+  const planned   = state.planned;
   const container = document.getElementById('planned-expenses-list');
   const monthKey  = currentMonthKey();
   const now       = new Date();
   const today     = now.getDate();
+  const thisMonth = now.getMonth() + 1;
+  const thisYear  = now.getFullYear();
 
   if (!planned.length) {
     container.innerHTML = `
@@ -1140,27 +1160,76 @@ function renderPlannedExpenses() {
     return;
   }
 
+  // Monthly summary
+  let totalThisMonth = 0, paidThisMonth = 0;
+  planned.forEach(p => {
+    const isPaid = p.paidMonths?.includes(monthKey) || false;
+    if (p.recurring) {
+      totalThisMonth += p.amount;
+      if (isPaid) paidThisMonth += p.amount;
+    } else if (p.dueDate) {
+      const d = new Date(p.dueDate + 'T00:00:00');
+      if (d.getMonth() + 1 === thisMonth && d.getFullYear() === thisYear) {
+        totalThisMonth += p.amount;
+        if (isPaid) paidThisMonth += p.amount;
+      }
+    }
+  });
+  const remaining = totalThisMonth - paidThisMonth;
+
+  const summaryHTML = totalThisMonth > 0 ? `
+    <div class="planned-summary-card">
+      <div class="planned-summary-row">
+        <span>Bu oy rejalashtirilgan</span>
+        <span style="color:var(--expense);font-weight:700">${fmt(totalThisMonth)} so'm</span>
+      </div>
+      <div class="planned-summary-row">
+        <span>✅ To'landi</span>
+        <span style="color:var(--income);font-weight:700">${fmt(paidThisMonth)} so'm</span>
+      </div>
+      <div class="planned-summary-row" style="border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;margin-top:4px">
+        <span style="font-weight:700">Qoldi</span>
+        <span style="color:${remaining > 0 ? 'var(--expense)' : 'var(--income)'};font-weight:700">${fmt(remaining)} so'm</span>
+      </div>
+    </div>` : '';
+
   const sorted = [...planned].sort((a, b) => {
     const aPaid = a.paidMonths?.includes(monthKey) || false;
     const bPaid = b.paidMonths?.includes(monthKey) || false;
     if (aPaid !== bPaid) return aPaid ? 1 : -1;
-    return a.dayOfMonth - b.dayOfMonth;
+    const aDay = a.dayOfMonth || 0;
+    const bDay = b.dayOfMonth || 0;
+    return aDay - bDay;
   });
 
-  container.innerHTML = sorted.map(p => {
-    const isPaid   = p.paidMonths?.includes(monthKey) || false;
-    const daysLeft = p.dayOfMonth - today;
-    const isOverdue = daysLeft < 0 && !isPaid;
-    const isUrgent  = daysLeft >= 0 && daysLeft <= 3 && !isPaid;
+  const itemsHTML = sorted.map(p => {
+    const isPaid = p.paidMonths?.includes(monthKey) || false;
+
+    let isOverdue = false, isUrgent = false, dayLabel = '';
+    if (p.recurring) {
+      const daysLeft = (p.dayOfMonth || 1) - today;
+      isOverdue = daysLeft < 0 && !isPaid;
+      isUrgent  = daysLeft >= 0 && daysLeft <= 3 && !isPaid;
+      dayLabel  = isPaid ? "✅ To'landi"
+        : isOverdue ? "⚠️ Muddati o'tdi"
+        : `📅 Har oy ${p.dayOfMonth}-kuni`;
+    } else if (p.dueDate) {
+      const dueDateObj = new Date(p.dueDate + 'T00:00:00');
+      const msDiff = dueDateObj - now;
+      isOverdue = msDiff < 0 && !isPaid;
+      isUrgent  = msDiff >= 0 && msDiff / 86400000 <= 3 && !isPaid;
+      const ds  = formatDate(p.dueDate);
+      dayLabel  = isPaid ? "✅ To'landi"
+        : isOverdue ? `⚠️ Muddati o'tdi (${ds})`
+        : `📅 ${ds}`;
+    } else {
+      dayLabel = isPaid ? "✅ To'landi" : "📅 Bir martalik";
+    }
 
     let cardCls = 'planned-item';
-    if (isPaid)     cardCls += ' paid';
-    else if (isOverdue) cardCls += ' overdue';
-    else if (isUrgent)  cardCls += ' unpaid';
-
-    const dayLabel = isPaid   ? "✅ To'landi"
-      : isOverdue ? "⚠️ Muddati o'tdi"
-      : `📅 ${p.dayOfMonth}-${UZBEK_MONTHS[now.getMonth() + 1].toLowerCase()}`;
+    if (isPaid)          cardCls += ' paid';
+    else if (isOverdue)  cardCls += ' overdue';
+    else if (isUrgent)   cardCls += ' unpaid';
 
     return `
       <div class="${cardCls}">
@@ -1168,10 +1237,10 @@ function renderPlannedExpenses() {
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
             <span style="font-size:16px">${getCatEmoji(p.category, 'expense')}</span>
             <p style="font-weight:700;font-size:14px;color:#fff">${p.name}</p>
-            ${p.recurring ? '<span class="recurring-badge">🔄</span>' : ''}
+            ${p.recurring ? '<span class="recurring-badge">🔄</span>' : '<span class="recurring-badge" style="background:rgba(255,183,71,0.15);color:#FFB347">1×</span>'}
           </div>
           <p style="font-size:14px;font-weight:700;color:var(--expense)">${fmt(p.amount)} so'm</p>
-          <p style="font-size:11px;color:var(--text-3);margin-top:2px">${p.category} · ${dayLabel}</p>
+          <p style="font-size:11px;color:var(--text-3);margin-top:2px">${p.category || '—'} · ${dayLabel}</p>
         </div>
         <div class="planned-item-action">
           ${!isPaid ? `<button class="pay-btn" onclick="markPlannedPaid('${p.id}')">To'lash ✓</button>` : ''}
@@ -1179,6 +1248,8 @@ function renderPlannedExpenses() {
         </div>
       </div>`;
   }).join('');
+
+  container.innerHTML = summaryHTML + itemsHTML;
 }
 
 async function markPlannedPaid(id) {
@@ -1228,14 +1299,23 @@ async function deletePlanned(id) {
 // ── Planned expense modal ─────────────────────────────────
 let _editingPlannedId = null;
 
+function togglePlannedDateFields() {
+  const recurring = document.querySelector('input[name="planned-recurring"]:checked')?.value === 'true';
+  document.getElementById('planned-day-row').style.display  = recurring ? '' : 'none';
+  document.getElementById('planned-date-row').style.display = recurring ? 'none' : '';
+}
+
 function openAddPlannedModal() {
   _editingPlannedId = null;
   document.getElementById('planned-name-input').value   = '';
   document.getElementById('planned-amount-input').value = '';
   document.getElementById('planned-day-input').value    = new Date().getDate();
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('planned-date-input').value   = today;
   document.getElementById('planned-cat-select').innerHTML =
     getAllCatsForType('expense').map(c => `<option value="${c.id}">${c.emoji} ${c.id}</option>`).join('');
   document.querySelector('input[name="planned-recurring"][value="true"]').checked = true;
+  togglePlannedDateFields();
   document.getElementById('planned-modal-title').textContent = "📋 Rejalashtirilgan to'lov";
   document.getElementById('planned-modal').classList.add('active');
   haptic('light');
@@ -1249,26 +1329,41 @@ function closeAddPlannedModal() {
 async function savePlannedExpense() {
   const name      = document.getElementById('planned-name-input').value.trim();
   const amount    = parseFloat(document.getElementById('planned-amount-input').value);
-  const day       = parseInt(document.getElementById('planned-day-input').value);
   const category  = document.getElementById('planned-cat-select').value;
   const recurring = document.querySelector('input[name="planned-recurring"]:checked')?.value === 'true';
 
-  if (!name)                   { showToast("Nom kiriting",                    'error'); return; }
-  if (!amount || amount <= 0)  { showToast("Summani kiriting",                'error'); return; }
-  if (!day || day < 1 || day > 31) { showToast("Sana 1–31 orasida bo'lishi kerak", 'error'); return; }
-  if (!category)               { showToast("Kategoriya tanlang",              'error'); return; }
+  if (!name)                  { showToast("Nom kiriting",    'error'); return; }
+  if (!amount || amount <= 0) { showToast("Summani kiriting",'error'); return; }
+  if (!category)              { showToast("Kategoriya tanlang", 'error'); return; }
+
+  let dueDay = null, dueDate = null;
+  if (recurring) {
+    dueDay = parseInt(document.getElementById('planned-day-input').value);
+    if (!dueDay || dueDay < 1 || dueDay > 31) {
+      showToast("Sana 1–31 orasida bo'lishi kerak", 'error'); return;
+    }
+  } else {
+    dueDate = document.getElementById('planned-date-input').value;
+    if (!dueDate) { showToast("To'lov sanasini tanlang", 'error'); return; }
+    dueDay = new Date(dueDate + 'T00:00:00').getDate();
+  }
 
   try {
     const result = await apiFetch('/api/planned', {
       method: 'POST',
       body: JSON.stringify({
         user_id: state.userId, name, amount, category,
-        is_recurring: recurring, due_day: day, recurrence_type: 'monthly',
+        is_recurring: recurring,
+        due_day: dueDay,
+        due_date: dueDate,
+        recurrence_type: recurring ? 'monthly' : 'once',
       }),
     });
     state.planned.push({
       id: result.payment.id,
-      name, amount, dayOfMonth: day, category, recurring, paidMonths: [],
+      name, amount, dayOfMonth: dueDay, dueDate,
+      category, recurring, recurrenceType: recurring ? 'monthly' : 'once',
+      paidMonths: [],
     });
     closeAddPlannedModal();
     haptic('success');
@@ -1344,6 +1439,189 @@ function renderBudgetAnalytics() {
 }
 
 // ══════════════════════════════════════════════════════════
+// NEXT MONTH PLANNER
+// ══════════════════════════════════════════════════════════
+let _mpType = 'income'; // current modal type
+
+async function loadNextMonthPlanner() {
+  const { month, year } = nextMonthInfo();
+  state.mpMonth = month;
+  state.mpYear  = year;
+  const container = document.getElementById('budget-nextmonth-content');
+  container.innerHTML = `<div class="empty-state"><span class="empty-icon">⏳</span><p>Yuklanmoqda...</p></div>`;
+  try {
+    const data = await apiFetch(`/api/monthly-plans/${state.userId}?month=${month}&year=${year}`);
+    state.monthlyPlans = data.plans || [];
+    renderNextMonthPlanner();
+  } catch {
+    container.innerHTML = `<div class="empty-state"><span class="empty-icon">⚠️</span><p>Yuklanmadi</p></div>`;
+  }
+}
+
+function renderNextMonthPlanner() {
+  const { month, year } = nextMonthInfo();
+  const monthName = `${UZBEK_MONTHS[month]} ${year}`;
+  const container = document.getElementById('budget-nextmonth-content');
+  const plans = state.monthlyPlans;
+
+  const incomes  = plans.filter(p => p.plan_type === 'income');
+  const expenses = plans.filter(p => p.plan_type === 'expense');
+
+  const totalIncome  = incomes.reduce((s, p)  => s + parseFloat(p.amount), 0);
+  const totalExpense = expenses.reduce((s, p) => s + parseFloat(p.amount), 0);
+  const balance      = totalIncome - totalExpense;
+  const overBudget   = balance < 0;
+
+  const summaryHTML = `
+    <div class="budget-overview-card" style="margin-bottom:16px">
+      <div class="budget-overview-top">
+        <h2>${monthName} rejasi</h2>
+      </div>
+      <div class="budget-stats-row">
+        <div class="budget-stat">
+          <p class="budget-stat-label">DAROMAD</p>
+          <p class="budget-stat-value income-text">+${fmt(totalIncome)} so'm</p>
+        </div>
+        <div class="budget-stat">
+          <p class="budget-stat-label">XARAJAT</p>
+          <p class="budget-stat-value expense-text">-${fmt(totalExpense)} so'm</p>
+        </div>
+        <div class="budget-stat">
+          <p class="budget-stat-label">TEJAM</p>
+          <p class="budget-stat-value ${overBudget ? 'expense-text' : 'income-text'}">${overBudget ? '-' : '+'}${fmt(Math.abs(balance))} so'm</p>
+        </div>
+      </div>
+      ${overBudget ? `<div class="warning-card" style="margin-top:10px">⚠️ Rejalashtirilgan xarajat daromaddan <b>${fmt(-balance)} so'm</b> ko'p!</div>` : (totalIncome > 0 ? `<div class="success-card" style="margin-top:10px">✅ ${fmt(balance)} so'm tejash rejalashtirilmoqda</div>` : '')}
+    </div>`;
+
+  const incomesHTML = `
+    <div class="block-header" style="padding:0 2px;margin-bottom:8px">
+      <h3 style="color:var(--text-2);font-size:13px;font-weight:700;letter-spacing:0.5px">💰 KUTILAYOTGAN DAROMADLAR</h3>
+      <button class="link-btn" onclick="openMonthlyPlanModal('income')">+ Qo'shish</button>
+    </div>
+    ${incomes.length ? incomes.map(p => `
+      <div class="planned-item" style="margin-bottom:8px">
+        <div class="planned-item-info">
+          <p style="font-weight:700;font-size:14px;color:#fff">${p.name}</p>
+          <p style="font-size:14px;font-weight:700;color:var(--income)">${fmt(p.amount)} so'm</p>
+          ${p.expected_day ? `<p style="font-size:11px;color:var(--text-3)">${p.expected_day}-kuni kutilmoqda</p>` : ''}
+        </div>
+        <div class="planned-item-action">
+          <button class="budget-del-btn" onclick="deleteMonthlyPlan('${p.id}')">✕</button>
+        </div>
+      </div>`).join('') : `<div class="empty-state" style="padding:12px 0"><p style="font-size:13px">Daromad manbasi qo'shilmagan</p></div>`}`;
+
+  const expensesByDay = {};
+  expenses.forEach(p => {
+    const dayKey = p.expected_day ? `${p.expected_day}-kun` : 'Sana belgilanmagan';
+    if (!expensesByDay[dayKey]) expensesByDay[dayKey] = [];
+    expensesByDay[dayKey].push(p);
+  });
+  const sortedDayKeys = Object.keys(expensesByDay).sort((a, b) => {
+    const da = parseInt(a) || 99;
+    const db = parseInt(b) || 99;
+    return da - db;
+  });
+
+  const expensesHTML = `
+    <div class="block-header" style="padding:0 2px;margin:16px 0 8px">
+      <h3 style="color:var(--text-2);font-size:13px;font-weight:700;letter-spacing:0.5px">💸 REJALASHTIRILGAN XARAJATLAR</h3>
+      <button class="link-btn" onclick="openMonthlyPlanModal('expense')">+ Qo'shish</button>
+    </div>
+    ${expenses.length ? sortedDayKeys.map(dk => `
+      <p style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.5px;margin:10px 0 4px">📅 ${dk}</p>
+      ${expensesByDay[dk].map(p => `
+        <div class="planned-item" style="margin-bottom:8px">
+          <div class="planned-item-info">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>${getCatEmoji(p.category, 'expense')}</span>
+              <p style="font-weight:700;font-size:14px;color:#fff">${p.name}</p>
+            </div>
+            <p style="font-size:14px;font-weight:700;color:var(--expense)">${fmt(p.amount)} so'm</p>
+            ${p.category ? `<p style="font-size:11px;color:var(--text-3)">${p.category}</p>` : ''}
+          </div>
+          <div class="planned-item-action">
+            <button class="budget-del-btn" onclick="deleteMonthlyPlan('${p.id}')">✕</button>
+          </div>
+        </div>`).join('')}`).join('')
+    : `<div class="empty-state" style="padding:12px 0"><p style="font-size:13px">Xarajat qo'shilmagan</p></div>`}`;
+
+  container.innerHTML = summaryHTML + incomesHTML + expensesHTML;
+}
+
+let _mpModalType = 'income';
+
+function openMonthlyPlanModal(type) {
+  _mpModalType = type;
+  const isIncome = type === 'income';
+  document.getElementById('monthly-plan-modal-title').textContent =
+    isIncome ? '💰 Daromad manbasi qo\'shish' : '💸 Xarajat qo\'shish';
+  document.getElementById('mp-name-input').value   = '';
+  document.getElementById('mp-amount-input').value = '';
+  document.getElementById('mp-day-input').value    = '';
+
+  const catWrap = document.getElementById('mp-cat-wrap');
+  const catSel  = document.getElementById('mp-cat-select');
+  if (isIncome) {
+    catSel.innerHTML = getAllCatsForType('income').map(c => `<option value="${c.id}">${c.emoji} ${c.id}</option>`).join('');
+    catWrap.style.display = '';
+  } else {
+    catSel.innerHTML = getAllCatsForType('expense').map(c => `<option value="${c.id}">${c.emoji} ${c.id}</option>`).join('');
+    catWrap.style.display = '';
+  }
+  document.getElementById('monthly-plan-modal').classList.add('active');
+  haptic('light');
+}
+
+function closeMonthlyPlanModal() {
+  document.getElementById('monthly-plan-modal').classList.remove('active');
+}
+
+async function saveMonthlyPlan() {
+  const name   = document.getElementById('mp-name-input').value.trim();
+  const amount = parseFloat(document.getElementById('mp-amount-input').value);
+  const day    = parseInt(document.getElementById('mp-day-input').value) || null;
+  const cat    = document.getElementById('mp-cat-select').value;
+
+  if (!name)                  { showToast("Nom kiriting",    'error'); return; }
+  if (!amount || amount <= 0) { showToast("Summani kiriting",'error'); return; }
+
+  try {
+    const result = await apiFetch('/api/monthly-plans', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: state.userId,
+        month: state.mpMonth,
+        year:  state.mpYear,
+        plan_type: _mpModalType,
+        name, amount,
+        category: cat,
+        expected_day: day,
+      }),
+    });
+    state.monthlyPlans.push(result.plan);
+    closeMonthlyPlanModal();
+    haptic('success');
+    showToast("✅ Reja saqlandi!", 'success');
+    renderNextMonthPlanner();
+  } catch {
+    showToast("Xato yuz berdi", 'error');
+  }
+}
+
+async function deleteMonthlyPlan(id) {
+  haptic('medium');
+  try {
+    await apiFetch(`/api/monthly-plans/${id}?user_id=${state.userId}`, { method: 'DELETE' });
+    state.monthlyPlans = state.monthlyPlans.filter(p => p.id !== id);
+    showToast("Reja o'chirildi", 'success');
+    renderNextMonthPlanner();
+  } catch {
+    showToast("Xato yuz berdi", 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════════
 // DATA LOADING — Supabase sync
 // ══════════════════════════════════════════════════════════
 async function loadUserData() {
@@ -1378,8 +1656,10 @@ async function loadUserData() {
         name: p.name,
         amount: parseFloat(p.amount),
         dayOfMonth: p.due_day,
+        dueDate: p.due_date || null,
         category: p.category || '',
         recurring: p.is_recurring,
+        recurrenceType: p.recurrence_type || 'monthly',
         paidMonths: p.paid_months || [],
       }));
     }
