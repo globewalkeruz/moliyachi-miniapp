@@ -67,6 +67,10 @@ const state = {
   cachedBalance: 0,
   cachedIncome: 0,
   cachedExpense: 0,
+  // Supabase-backed data caches (populated on init)
+  categories: [],   // [{ dbId, name, emoji, type }]
+  budgets: {},      // { "YYYY-MM": { categoryName: limitAmount } }
+  planned: [],      // [{ id(uuid), name, amount, dayOfMonth, category, recurring, paidMonths[] }]
 };
 
 let selectedEmoji = '🏷️';
@@ -183,21 +187,15 @@ function writeSettingsToStorage(s) {
 }
 
 // ── Custom categories ─────────────────────────────────────
+// Returns state.categories (in-memory, loaded from Supabase on init)
 function loadCustomCategories() {
-  try {
-    return JSON.parse(localStorage.getItem('moliyachi_custom_categories') || '[]');
-  } catch { return []; }
-}
-
-function saveCustomCategories(cats) {
-  localStorage.setItem('moliyachi_custom_categories', JSON.stringify(cats));
+  return state.categories;
 }
 
 function getAllCatsForType(type) {
-  const custom = loadCustomCategories();
-  const customForType = custom
+  const customForType = state.categories
     .filter(c => c.type === type || c.type === 'both')
-    .map(c => ({ id: c.name, emoji: c.emoji, color: '#a78bfa', isCustom: true }));
+    .map(c => ({ id: c.name, emoji: c.emoji, color: '#a78bfa', isCustom: true, dbId: c.dbId }));
   return [...CATEGORIES[type], ...customForType];
 }
 
@@ -281,12 +279,11 @@ function renderCategoryChips() {
       <span>${c.id}</span>
     </span>`).join('');
 
-  const custom = loadCustomCategories();
-  const customHTML = custom.map(c => `
+  const customHTML = state.categories.map(c => `
     <span class="category-chip category-chip-custom">
       <span>${c.emoji}</span>
       <span>${c.name}</span>
-      <button class="chip-delete-btn" onclick="deleteCustomCategory('${c.id}')" title="O'chirish">✕</button>
+      <button class="chip-delete-btn" onclick="deleteCustomCategory('${c.dbId}')" title="O'chirish">✕</button>
     </span>`).join('');
 
   container.innerHTML = defaultHTML + customHTML;
@@ -323,34 +320,46 @@ function selectEmoji(emoji, btn) {
   btn.classList.add('selected');
 }
 
-function saveNewCategory() {
+async function saveNewCategory() {
   const name = (document.getElementById('new-cat-name')?.value || '').trim();
   if (!name) { showToast("Kategoriya nomini kiriting", 'error'); return; }
 
   const type = document.querySelector('input[name="cat-type"]:checked')?.value || 'expense';
-  const custom = loadCustomCategories();
-  const id = 'cat_' + Date.now();
 
-  custom.push({ id, name, emoji: selectedEmoji, type, isCustom: true });
-  saveCustomCategories(custom);
-
-  closeAddCategoryModal();
-  renderCategoryChips();
-  renderCategories('expense');
-  renderCategories('income');
-
-  haptic('success');
-  showToast(`✅ "${name}" kategoriyasi qo'shildi!`, 'success');
+  try {
+    const result = await apiFetch('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: state.userId, name, emoji: selectedEmoji, type }),
+    });
+    state.categories.push({
+      dbId: result.category.id,
+      name: result.category.name,
+      emoji: result.category.emoji || selectedEmoji,
+      type: result.category.type,
+    });
+    closeAddCategoryModal();
+    renderCategoryChips();
+    renderCategories('expense');
+    renderCategories('income');
+    haptic('success');
+    showToast(`✅ "${name}" kategoriyasi qo'shildi!`, 'success');
+  } catch {
+    showToast("Xato yuz berdi", 'error');
+  }
 }
 
-function deleteCustomCategory(id) {
+async function deleteCustomCategory(dbId) {
   haptic('medium');
-  const custom = loadCustomCategories().filter(c => c.id !== id);
-  saveCustomCategories(custom);
-  renderCategoryChips();
-  renderCategories('expense');
-  renderCategories('income');
-  showToast("Kategoriya o'chirildi", 'success');
+  try {
+    await apiFetch(`/api/categories/${dbId}?user_id=${state.userId}`, { method: 'DELETE' });
+    state.categories = state.categories.filter(c => c.dbId !== dbId);
+    renderCategoryChips();
+    renderCategories('expense');
+    renderCategories('income');
+    showToast("Kategoriya o'chirildi", 'success');
+  } catch {
+    showToast("Xato yuz berdi", 'error');
+  }
 }
 
 // ── Data export / clear ───────────────────────────────────
@@ -385,13 +394,10 @@ async function clearAllData() {
   closeClearDataModal();
   try {
     await apiFetch(`/api/transactions/${state.userId}`, { method: 'DELETE' });
-    localStorage.removeItem('moliyachi_custom_categories');
     state.cachedBalance = 0;
     state.cachedIncome  = 0;
     state.cachedExpense = 0;
     updateBalanceDOM(0, 0, 0);
-    renderCategories('expense');
-    renderCategories('income');
     haptic('success');
     showToast("✅ Barcha ma'lumotlar o'chirildi!", 'success');
   } catch {
@@ -788,32 +794,18 @@ function currentMonthKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Budget reads — use in-memory state loaded from Supabase
 function loadAllBudgets() {
-  try { return JSON.parse(localStorage.getItem('moliyachi_budgets') || '{}'); }
-  catch { return {}; }
-}
-
-function saveAllBudgets(data) {
-  localStorage.setItem('moliyachi_budgets', JSON.stringify(data));
+  return state.budgets;
 }
 
 function getMonthBudgets(monthKey) {
-  return loadAllBudgets()[monthKey] || {};
+  return state.budgets[monthKey] || {};
 }
 
-function setMonthBudgets(monthKey, monthData) {
-  const all = loadAllBudgets();
-  all[monthKey] = monthData;
-  saveAllBudgets(all);
-}
-
+// Planned reads — use in-memory state
 function loadPlanned() {
-  try { return JSON.parse(localStorage.getItem('moliyachi_planned') || '[]'); }
-  catch { return []; }
-}
-
-function savePlanned(plans) {
-  localStorage.setItem('moliyachi_planned', JSON.stringify(plans));
+  return state.planned;
 }
 
 function getCatEmoji(catName, type) {
@@ -1045,17 +1037,30 @@ function closeAddBudgetModal() {
   _budgetModalMonthKey = null;
 }
 
-function saveBudget() {
+async function saveBudget() {
   const cat   = document.getElementById('budget-cat-select').value;
   const limit = parseFloat(document.getElementById('budget-limit-input').value);
   const mKey  = document.getElementById('budget-month-select').value || currentMonthKey();
+  const [yearStr, monthStr] = mKey.split('-');
+  const year = parseInt(yearStr), month = parseInt(monthStr);
 
-  if (!cat)             { showToast("Kategoriya tanlang",  'error'); return; }
-  if (!limit || limit <= 0) { showToast("Summani kiriting", 'error'); return; }
+  if (!cat)                 { showToast("Kategoriya tanlang",  'error'); return; }
+  if (!limit || limit <= 0) { showToast("Summani kiriting",    'error'); return; }
 
-  const budgets = getMonthBudgets(mKey);
-  budgets[cat]  = limit;
-  setMonthBudgets(mKey, budgets);
+  // Optimistic state update
+  if (!state.budgets[mKey]) state.budgets[mKey] = {};
+  state.budgets[mKey][cat] = limit;
+
+  try {
+    await apiFetch('/api/budgets', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: state.userId, month, year, category: cat, limit_amount: limit }),
+    });
+  } catch {
+    delete state.budgets[mKey][cat];
+    showToast("Xato yuz berdi", 'error');
+    return;
+  }
 
   const msg = _editingBudgetCat ? "✅ Byudjet yangilandi!" : `✅ "${cat}" uchun reja belgilandi!`;
   closeAddBudgetModal();
@@ -1064,17 +1069,26 @@ function saveBudget() {
   loadBudgetPage();
 }
 
-function deleteBudget(cat) {
+async function deleteBudget(cat) {
   haptic('medium');
-  const mKey    = currentMonthKey();
-  const budgets = getMonthBudgets(mKey);
-  delete budgets[cat];
-  setMonthBudgets(mKey, budgets);
+  const mKey = currentMonthKey();
+  const [yearStr, monthStr] = mKey.split('-');
+  const year = parseInt(yearStr), month = parseInt(monthStr);
+
+  if (state.budgets[mKey]) delete state.budgets[mKey][cat];
+
+  try {
+    await apiFetch(`/api/budgets?user_id=${state.userId}&month=${month}&year=${year}&category=${encodeURIComponent(cat)}`, {
+      method: 'DELETE',
+    });
+  } catch {
+    showToast("Xato yuz berdi", 'error');
+  }
   showToast("Byudjet o'chirildi", 'success');
   loadBudgetPage();
 }
 
-function copyLastMonthPlan() {
+async function copyLastMonthPlan() {
   haptic('medium');
   const now      = new Date();
   const prev     = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -1087,8 +1101,23 @@ function copyLastMonthPlan() {
   }
 
   const mKey    = currentMonthKey();
+  const [yearStr, monthStr] = mKey.split('-');
+  const year = parseInt(yearStr), month = parseInt(monthStr);
   const current = getMonthBudgets(mKey);
-  setMonthBudgets(mKey, { ...prevPlan, ...current });
+
+  // Only copy entries that don't already exist this month
+  const toAdd = Object.entries(prevPlan).filter(([cat]) => !current[cat]);
+  for (const [category, limit_amount] of toAdd) {
+    if (!state.budgets[mKey]) state.budgets[mKey] = {};
+    state.budgets[mKey][category] = limit_amount;
+    try {
+      await apiFetch('/api/budgets', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: state.userId, month, year, category, limit_amount }),
+      });
+    } catch {}
+  }
+
   haptic('success');
   showToast("✅ O'tgan oy rejasi nusxalandi!", 'success');
   loadBudgetPage();
@@ -1155,15 +1184,17 @@ function renderPlannedExpenses() {
 async function markPlannedPaid(id) {
   haptic('medium');
   const monthKey = currentMonthKey();
-  const planned  = loadPlanned();
-  const item     = planned.find(p => p.id === id);
+  const item = state.planned.find(p => p.id === id);
   if (!item) return;
 
-  if (!item.paidMonths) item.paidMonths = [];
-  item.paidMonths.push(monthKey);
-  savePlanned(planned);
-
   try {
+    await apiFetch(`/api/planned/${id}/paid`, {
+      method: 'PATCH',
+      body: JSON.stringify({ user_id: state.userId, month_key: monthKey }),
+    });
+    if (!item.paidMonths) item.paidMonths = [];
+    item.paidMonths.push(monthKey);
+
     await apiFetch('/api/transaction', {
       method: 'POST',
       body: JSON.stringify({
@@ -1178,15 +1209,20 @@ async function markPlannedPaid(id) {
     showToast(`✅ ${item.name} to'landi va xarajatlarga qo'shildi!`, 'success');
     loadBudgetPage();
   } catch {
-    showToast("Xarajat qo'shilmadi", 'error');
+    showToast("Xato yuz berdi", 'error');
   }
 }
 
-function deletePlanned(id) {
+async function deletePlanned(id) {
   haptic('medium');
-  savePlanned(loadPlanned().filter(p => p.id !== id));
-  showToast("To'lov o'chirildi", 'success');
-  renderPlannedExpenses();
+  try {
+    await apiFetch(`/api/planned/${id}?user_id=${state.userId}`, { method: 'DELETE' });
+    state.planned = state.planned.filter(p => p.id !== id);
+    showToast("To'lov o'chirildi", 'success');
+    renderPlannedExpenses();
+  } catch {
+    showToast("Xato yuz berdi", 'error');
+  }
 }
 
 // ── Planned expense modal ─────────────────────────────────
@@ -1210,30 +1246,37 @@ function closeAddPlannedModal() {
   _editingPlannedId = null;
 }
 
-function savePlannedExpense() {
+async function savePlannedExpense() {
   const name      = document.getElementById('planned-name-input').value.trim();
   const amount    = parseFloat(document.getElementById('planned-amount-input').value);
   const day       = parseInt(document.getElementById('planned-day-input').value);
   const category  = document.getElementById('planned-cat-select').value;
   const recurring = document.querySelector('input[name="planned-recurring"]:checked')?.value === 'true';
 
-  if (!name)              { showToast("Nom kiriting", 'error'); return; }
-  if (!amount || amount <= 0) { showToast("Summani kiriting", 'error'); return; }
+  if (!name)                   { showToast("Nom kiriting",                    'error'); return; }
+  if (!amount || amount <= 0)  { showToast("Summani kiriting",                'error'); return; }
   if (!day || day < 1 || day > 31) { showToast("Sana 1–31 orasida bo'lishi kerak", 'error'); return; }
-  if (!category)          { showToast("Kategoriya tanlang", 'error'); return; }
+  if (!category)               { showToast("Kategoriya tanlang",              'error'); return; }
 
-  const all = loadPlanned();
-  if (_editingPlannedId) {
-    const idx = all.findIndex(p => p.id === _editingPlannedId);
-    if (idx !== -1) all[idx] = { ...all[idx], name, amount, dayOfMonth: day, category, recurring };
-  } else {
-    all.push({ id: `plan_${Date.now()}`, name, amount, dayOfMonth: day, category, recurring, paidMonths: [] });
+  try {
+    const result = await apiFetch('/api/planned', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: state.userId, name, amount, category,
+        is_recurring: recurring, due_day: day, recurrence_type: 'monthly',
+      }),
+    });
+    state.planned.push({
+      id: result.payment.id,
+      name, amount, dayOfMonth: day, category, recurring, paidMonths: [],
+    });
+    closeAddPlannedModal();
+    haptic('success');
+    showToast("✅ Rejalashtirilgan to'lov saqlandi!", 'success');
+    renderPlannedExpenses();
+  } catch {
+    showToast("Xato yuz berdi", 'error');
   }
-  savePlanned(all);
-  closeAddPlannedModal();
-  haptic('success');
-  showToast("✅ Rejalashtirilgan to'lov saqlandi!", 'success');
-  renderPlannedExpenses();
 }
 
 // ── Analytics tab ─────────────────────────────────────────
@@ -1301,10 +1344,122 @@ function renderBudgetAnalytics() {
 }
 
 // ══════════════════════════════════════════════════════════
+// DATA LOADING — Supabase sync
+// ══════════════════════════════════════════════════════════
+async function loadUserData() {
+  try {
+    const [catsData, budgetsData, plannedData] = await Promise.all([
+      apiFetch(`/api/categories/${state.userId}`).catch(() => null),
+      apiFetch(`/api/budgets/${state.userId}`).catch(() => null),
+      apiFetch(`/api/planned/${state.userId}`).catch(() => null),
+    ]);
+
+    if (catsData?.categories) {
+      state.categories = catsData.categories.map(c => ({
+        dbId: c.id,
+        name: c.name,
+        emoji: c.emoji || '🏷️',
+        type: c.type || 'expense',
+      }));
+    }
+
+    if (budgetsData?.budgets) {
+      state.budgets = {};
+      budgetsData.budgets.forEach(b => {
+        const key = `${b.year}-${String(b.month).padStart(2, '0')}`;
+        if (!state.budgets[key]) state.budgets[key] = {};
+        state.budgets[key][b.category] = parseFloat(b.limit_amount);
+      });
+    }
+
+    if (plannedData?.payments) {
+      state.planned = plannedData.payments.map(p => ({
+        id: p.id,
+        name: p.name,
+        amount: parseFloat(p.amount),
+        dayOfMonth: p.due_day,
+        category: p.category || '',
+        recurring: p.is_recurring,
+        paidMonths: p.paid_months || [],
+      }));
+    }
+  } catch (e) {
+    console.error('loadUserData error:', e);
+  }
+}
+
+// One-time migration: push existing localStorage data into Supabase
+async function migrateLocalStorageToDb() {
+  if (localStorage.getItem('moliyachi_migrated_v2')) return;
+  // Mark upfront to avoid repeated attempts on errors
+  localStorage.setItem('moliyachi_migrated_v2', 'true');
+
+  // Migrate custom categories
+  if (state.categories.length === 0) {
+    const localCats = JSON.parse(localStorage.getItem('moliyachi_custom_categories') || '[]');
+    for (const cat of localCats) {
+      try {
+        const result = await apiFetch('/api/categories', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: state.userId, name: cat.name, emoji: cat.emoji || '🏷️', type: cat.type || 'expense' }),
+        });
+        if (result.category) {
+          state.categories.push({ dbId: result.category.id, name: result.category.name, emoji: result.category.emoji, type: result.category.type });
+        }
+      } catch {}
+    }
+  }
+
+  // Migrate budget plans
+  if (Object.keys(state.budgets).length === 0) {
+    const localBudgets = JSON.parse(localStorage.getItem('moliyachi_budgets') || '{}');
+    for (const [monthKey, cats] of Object.entries(localBudgets)) {
+      const [yearStr, monthStr] = monthKey.split('-');
+      const year = parseInt(yearStr), month = parseInt(monthStr);
+      for (const [category, limit_amount] of Object.entries(cats)) {
+        try {
+          await apiFetch('/api/budgets', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: state.userId, month, year, category, limit_amount }),
+          });
+          if (!state.budgets[monthKey]) state.budgets[monthKey] = {};
+          state.budgets[monthKey][category] = limit_amount;
+        } catch {}
+      }
+    }
+  }
+
+  // Migrate planned payments
+  if (state.planned.length === 0) {
+    const localPlanned = JSON.parse(localStorage.getItem('moliyachi_planned') || '[]');
+    for (const p of localPlanned) {
+      try {
+        const result = await apiFetch('/api/planned', {
+          method: 'POST',
+          body: JSON.stringify({
+            user_id: state.userId, name: p.name, amount: p.amount, category: p.category || '',
+            is_recurring: p.recurring !== false, due_day: p.dayOfMonth, recurrence_type: 'monthly',
+          }),
+        });
+        if (result.payment) {
+          state.planned.push({
+            id: result.payment.id, name: p.name, amount: p.amount,
+            dayOfMonth: p.dayOfMonth, category: p.category || '',
+            recurring: p.recurring !== false, paidMonths: p.paidMonths || [],
+          });
+        }
+      } catch {}
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
 async function init() {
   initTelegram();
+  await loadUserData();
+  await migrateLocalStorageToDb();
   renderCategories('expense');
   renderCategories('income');
   await loadHome();

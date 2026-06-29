@@ -14,7 +14,10 @@ from auth import validate_init_data
 from currency import get_currency_rates
 from fastapi import Depends, Header
 from gemini_ai import get_financial_advice
-from models import AIAdviceRequest, TransactionCreate
+from models import (
+    AIAdviceRequest, TransactionCreate,
+    CategoryCreate, BudgetUpsert, ScheduledPaymentCreate, MarkPaidRequest,
+)
 
 load_dotenv()
 
@@ -319,6 +322,167 @@ async def _send_message(token: str, chat_id: int, text: str, keyboard: dict = No
         payload["reply_markup"] = keyboard
     async with httpx.AsyncClient(timeout=10.0) as client:
         await client.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
+
+
+# ──────────────────────────────────────────────
+# Categories
+# ──────────────────────────────────────────────
+
+@app.get("/api/categories/{user_id}")
+async def get_categories(user_id: int, _: dict = Depends(get_current_user)):
+    try:
+        cats = await database.get_categories(user_id)
+        return {"categories": cats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/categories")
+async def add_category(data: CategoryCreate, _: dict = Depends(get_current_user)):
+    try:
+        cat = await database.add_category(
+            user_id=data.user_id,
+            name=data.name,
+            emoji=data.emoji,
+            type=data.type,
+            color=data.color,
+        )
+        return {"success": True, "category": cat}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/categories/{category_id}")
+async def delete_category(
+    category_id: str,
+    user_id: int,
+    _: dict = Depends(get_current_user),
+):
+    try:
+        deleted = await database.delete_category(category_id, user_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Kategoriya topilmadi")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ──────────────────────────────────────────────
+# Budgets
+# ──────────────────────────────────────────────
+
+@app.get("/api/budgets/{user_id}")
+async def get_budgets(user_id: int, _: dict = Depends(get_current_user)):
+    try:
+        budgets = await database.get_budgets(user_id)
+        return {"budgets": budgets}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/budgets")
+async def upsert_budget(data: BudgetUpsert, _: dict = Depends(get_current_user)):
+    try:
+        budget = await database.upsert_budget(
+            user_id=data.user_id,
+            month=data.month,
+            year=data.year,
+            category=data.category,
+            limit_amount=data.limit_amount,
+        )
+        return {"success": True, "budget": budget}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/budgets")
+async def delete_budget(
+    user_id: int,
+    month: int,
+    year: int,
+    category: str,
+    _: dict = Depends(get_current_user),
+):
+    try:
+        deleted = await database.delete_budget(user_id, month, year, category)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Byudjet topilmadi")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ──────────────────────────────────────────────
+# Scheduled Payments
+# ──────────────────────────────────────────────
+
+@app.get("/api/planned/{user_id}")
+async def get_planned(user_id: int, _: dict = Depends(get_current_user)):
+    try:
+        payments = await database.get_scheduled_payments(user_id)
+        return {"payments": payments}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/planned")
+async def add_planned(data: ScheduledPaymentCreate, _: dict = Depends(get_current_user)):
+    try:
+        payment = await database.add_scheduled_payment(
+            user_id=data.user_id,
+            name=data.name,
+            amount=data.amount,
+            category=data.category,
+            is_recurring=data.is_recurring,
+            due_day=data.due_day,
+            due_date=data.due_date,
+            recurrence_type=data.recurrence_type,
+        )
+        return {"success": True, "payment": payment}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/planned/{payment_id}")
+async def delete_planned(
+    payment_id: str,
+    user_id: int,
+    _: dict = Depends(get_current_user),
+):
+    try:
+        deleted = await database.delete_scheduled_payment(payment_id, user_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="To'lov topilmadi")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/api/planned/{payment_id}/paid")
+async def mark_planned_paid(
+    payment_id: str,
+    data: MarkPaidRequest,
+    _: dict = Depends(get_current_user),
+):
+    try:
+        updated = await database.mark_scheduled_payment_paid(
+            payment_id=payment_id,
+            user_id=data.user_id,
+            month_key=data.month_key,
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="To'lov topilmadi")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Mount frontend AFTER all API routes

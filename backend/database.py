@@ -27,6 +27,10 @@ async def init_db():
     pass
 
 
+# ──────────────────────────────────────────────
+# Transactions
+# ──────────────────────────────────────────────
+
 async def add_transaction(user_id: int, amount: float, type: str, category: str, description: str = None):
     def _insert():
         return _get_client().table("transactions").insert({
@@ -52,7 +56,6 @@ async def get_transactions(user_id: int, limit: int = 50):
     for r in result.data:
         created = r.get("created_at", "")
         if created:
-            # Normalise ISO timestamp → "YYYY-MM-DD HH:MM" (same shape as SQLite output)
             created = created[:16].replace("T", " ")
         rows.append({
             "id": r["id"],
@@ -136,3 +139,154 @@ async def ensure_user(telegram_id: int, first_name: str, last_name: str = None, 
             on_conflict="telegram_id",
         ).execute()
     await asyncio.to_thread(_upsert)
+
+
+# ──────────────────────────────────────────────
+# Categories
+# ──────────────────────────────────────────────
+
+async def get_categories(user_id: int) -> list:
+    def _query():
+        return _get_client().table("categories") \
+            .select("*") \
+            .eq("telegram_user_id", user_id) \
+            .order("created_at") \
+            .execute()
+    result = await asyncio.to_thread(_query)
+    return result.data
+
+
+async def add_category(user_id: int, name: str, emoji: str, type: str, color: str = None) -> dict | None:
+    def _insert():
+        return _get_client().table("categories").insert({
+            "telegram_user_id": user_id,
+            "name": name,
+            "emoji": emoji,
+            "type": type,
+            "color": color,
+        }).execute()
+    result = await asyncio.to_thread(_insert)
+    return result.data[0] if result.data else None
+
+
+async def delete_category(category_id: str, user_id: int) -> bool:
+    def _delete():
+        return _get_client().table("categories") \
+            .delete() \
+            .eq("id", category_id) \
+            .eq("telegram_user_id", user_id) \
+            .execute()
+    result = await asyncio.to_thread(_delete)
+    return len(result.data) > 0
+
+
+# ──────────────────────────────────────────────
+# Budgets
+# ──────────────────────────────────────────────
+
+async def get_budgets(user_id: int) -> list:
+    def _query():
+        return _get_client().table("budgets") \
+            .select("*") \
+            .eq("telegram_user_id", user_id) \
+            .execute()
+    result = await asyncio.to_thread(_query)
+    return result.data
+
+
+async def upsert_budget(user_id: int, month: int, year: int, category: str, limit_amount: float) -> dict | None:
+    def _upsert():
+        return _get_client().table("budgets").upsert({
+            "telegram_user_id": user_id,
+            "month": month,
+            "year": year,
+            "category": category,
+            "limit_amount": limit_amount,
+        }, on_conflict="telegram_user_id,month,year,category").execute()
+    result = await asyncio.to_thread(_upsert)
+    return result.data[0] if result.data else None
+
+
+async def delete_budget(user_id: int, month: int, year: int, category: str) -> bool:
+    def _delete():
+        return _get_client().table("budgets") \
+            .delete() \
+            .eq("telegram_user_id", user_id) \
+            .eq("month", month) \
+            .eq("year", year) \
+            .eq("category", category) \
+            .execute()
+    result = await asyncio.to_thread(_delete)
+    return len(result.data) > 0
+
+
+# ──────────────────────────────────────────────
+# Scheduled Payments
+# ──────────────────────────────────────────────
+
+async def get_scheduled_payments(user_id: int) -> list:
+    def _query():
+        return _get_client().table("scheduled_payments") \
+            .select("*") \
+            .eq("telegram_user_id", user_id) \
+            .order("created_at") \
+            .execute()
+    result = await asyncio.to_thread(_query)
+    return result.data
+
+
+async def add_scheduled_payment(
+    user_id: int, name: str, amount: float, category: str,
+    is_recurring: bool, due_day: int = None, due_date: str = None,
+    recurrence_type: str = 'monthly'
+) -> dict | None:
+    def _insert():
+        return _get_client().table("scheduled_payments").insert({
+            "telegram_user_id": user_id,
+            "name": name,
+            "amount": amount,
+            "category": category,
+            "is_recurring": is_recurring,
+            "recurrence_type": recurrence_type,
+            "due_day": due_day,
+            "due_date": due_date,
+            "paid_months": [],
+        }).execute()
+    result = await asyncio.to_thread(_insert)
+    return result.data[0] if result.data else None
+
+
+async def delete_scheduled_payment(payment_id: str, user_id: int) -> bool:
+    def _delete():
+        return _get_client().table("scheduled_payments") \
+            .delete() \
+            .eq("id", payment_id) \
+            .eq("telegram_user_id", user_id) \
+            .execute()
+    result = await asyncio.to_thread(_delete)
+    return len(result.data) > 0
+
+
+async def mark_scheduled_payment_paid(payment_id: str, user_id: int, month_key: str) -> bool:
+    def _get():
+        return _get_client().table("scheduled_payments") \
+            .select("paid_months") \
+            .eq("id", payment_id) \
+            .eq("telegram_user_id", user_id) \
+            .execute()
+    result = await asyncio.to_thread(_get)
+    if not result.data:
+        return False
+
+    paid_months = result.data[0].get("paid_months") or []
+    if month_key not in paid_months:
+        paid_months = [*paid_months, month_key]
+
+    def _update():
+        return _get_client().table("scheduled_payments") \
+            .update({"paid_months": paid_months}) \
+            .eq("id", payment_id) \
+            .eq("telegram_user_id", user_id) \
+            .execute()
+    result = await asyncio.to_thread(_update)
+    return len(result.data) > 0
